@@ -13,7 +13,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 
 1. **`src/IFM.mq5` é sempre a versão mais recente.** O nome do arquivo nunca ganha rótulo de versão. Versões são marcadas com git tag (`v1.0`, `v1.1`, ...) + entrada no `CHANGELOG.md`. Nunca criar duplicatas físicas do arquivo para versionar.
 2. **Toda modificação no indicador atualiza `docs/IFM_GUIA.md` no mesmo commit.** Guia dessincronizado é considerado bug.
-3. **Modificações permanentes precisam de justificativa registrada** — idealmente apontando para a pesquisa em `research/` que a motivou (no CHANGELOG e na mensagem de commit).
+3. **Modificações permanentes precisam de justificativa registrada no CHANGELOG e na mensagem de commit.** Há dois caminhos válidos: **via pesquisa** (a entrada aponta para a pesquisa em `research/` que a motivou) e **direta** (ideia, correção, ajuste empírico ou decisão do usuário — sem pesquisa prévia; a entrada registra a motivação em texto). Pesquisa não é pré-requisito para modificar o indicador; justificativa registrada é.
 4. **Dados brutos de mercado não entram no git** (barras, ticks, exports grandes). Ficam em `data/` dentro da pasta da pesquisa (gitignorados). Só entram scripts, resultados agregados/pequenos e conclusões.
 5. **Variantes** que não substituem a versão principal vão para `src/variants/` com sufixo identificador (ex.: `IFM-X.mq5`). Cada variante deve ter um comentário de cabeçalho explicando no que difere da principal.
 
@@ -27,10 +27,15 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 
 ## Fluxo de alteração do indicador
 
-1. Ler a pesquisa/motivação que originou a mudança.
+A mudança pode nascer de dois jeitos — ambos seguem os mesmos passos abaixo:
+
+- **Via pesquisa:** a conclusão de uma pesquisa em `research/` justifica a mudança.
+- **Direta:** o usuário decide modificar (ou criar variante) sem pesquisa prévia. Nesse caso a motivação é registrada em texto no CHANGELOG (e no cabeçalho da variante, se for variante).
+
+1. Entender a motivação da mudança (pesquisa ou decisão direta).
 2. Implementar em `src/IFM.mq5` (ou na variante, se for exploratório).
 3. Atualizar `docs/IFM_GUIA.md` nas seções afetadas.
-4. Atualizar `CHANGELOG.md` (versão, data, o que mudou, por quê, link da pesquisa).
+4. Atualizar `CHANGELOG.md` (versão, data, o que mudou, por quê — com link da pesquisa quando houver, ou a motivação direta quando não).
 5. Atualizar a seção "Estado atual" deste arquivo.
 6. Commit único com tudo + `git tag vX.Y`.
 7. Push com tags: `git push --follow-tags`.

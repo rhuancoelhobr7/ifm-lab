@@ -2,7 +2,7 @@
 
 Todas as versões do indicador `src/IFM.mq5`. Cada versão corresponde a um git tag.
 
-Formato de cada entrada: **o que mudou**, **por quê** (com link para a pesquisa em `research/` quando aplicável).
+Formato de cada entrada: **o que mudou** e **por quê**. A origem da mudança pode ser **pesquisa** (linkar a pasta em `research/`) ou **direta** (decisão/ideia/correção sem pesquisa prévia — registrar a motivação em texto). Ambas são válidas; nenhuma entrada fica sem motivação.
 
 ## v1.0 — 2026-07-14
 

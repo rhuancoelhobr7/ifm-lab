@@ -30,10 +30,21 @@ ifm-lab/
 
 ## Fluxo de trabalho
 
+Modificações no indicador podem nascer de **pesquisa** ou de **decisão direta** (ideia, correção, ajuste empírico) — pesquisa prévia não é obrigatória.
+
+**Caminho com pesquisa:**
+
 1. **Pergunta** → nasce uma pesquisa em `research/` (ver convenção em [research/README.md](research/README.md)).
 2. **Pesquisa** → scripts, dados e resultados ficam na pasta da pesquisa; a conclusão vai no `README.md` dela.
-3. **Decisão** → se a conclusão justifica mudança no indicador, a modificação é feita em `src/IFM.mq5`.
-4. **Registro** → CHANGELOG atualizado, `docs/IFM_GUIA.md` sincronizado, commit + tag.
+3. **Decisão** → se a conclusão justifica mudança no indicador, a modificação é feita em `src/IFM.mq5` (ou vira variante).
+4. **Registro** → CHANGELOG atualizado (com link da pesquisa), `docs/IFM_GUIA.md` sincronizado, commit + tag.
+
+**Caminho direto (sem pesquisa):**
+
+1. **Decisão** → a modificação (ou variante) é implementada diretamente.
+2. **Registro** → mesmo rigor: CHANGELOG com a motivação em texto, guia sincronizado, commit + tag.
+
+Em ambos os caminhos, o que é inegociável é o **registro**: toda mudança permanente tem versão, motivação e documentação atualizada.
 
 ## Estado atual
 
