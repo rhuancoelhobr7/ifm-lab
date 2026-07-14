@@ -1,0 +1,25 @@
+# Dados brutos de mercado (barras, ticks, exports do MT5) — nunca commitados
+research/**/data/
+tools/**/data/
+*.hst
+*.tks
+
+# CSVs grandes de export ficam fora por padrão; resultados agregados pequenos
+# podem ser commitados explicitamente com `git add -f` quando fizer sentido
+research/**/raw/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Compilados MQL5
+*.ex5
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+*.swp
