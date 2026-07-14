@@ -5,7 +5,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 ## Estado atual
 
 - **Versão principal:** v1.0 (`src/IFM.mq5`, nome interno "IFM-Z Metrics", ~2033 linhas).
-- **Documentação:** `docs/IFM_GUIA.md` cobre 100% da arquitetura da v1.0.
+- **Documentação:** `docs/IFM_GUIA.md` cobre 100% da arquitetura da v1.0; `docs/LEITURA.md` (playbook de interpretação) ainda sem entradas.
 - **Pesquisas:** nenhuma iniciada ainda.
 - **Variantes:** nenhuma ainda.
 
@@ -20,6 +20,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 ## Convenções
 
 - **Pesquisas:** cada uma é uma subpasta autocontida `research/YYYY-MM-slug/` seguindo o template em `research/_template/`. O `README.md` da pesquisa segue o formato *pergunta → método → resultados → conclusão*. O índice em `research/README.md` deve ser atualizado ao criar/concluir uma pesquisa.
+- **Destinos de uma conclusão de pesquisa:** (a) mudança no indicador (`src/IFM.mq5` + CHANGELOG); (b) variante (`src/variants/`); (c) **mudança de leitura** — o resultado altera como interpretamos/usamos o indicador sem tocar no código: vira entrada em `docs/LEITURA.md` (com link para a pesquisa e nível de confiança); (d) descarte — hipótese refutada/inconclusiva, registrada na própria pesquisa. Pesquisa relevante sem mudança de código é um desfecho normal, não uma pesquisa "incompleta".
 - **Versionamento semântico simples:** minor (`v1.1`) para mudanças de comportamento/features; patch (`v1.0.1`) para correções sem mudança de lógica; major (`v2.0`) para reestruturações do núcleo (juízes, motor ML, fórmula da força S).
 - **Commits:** mensagem em português, imperativo, primeira linha ≤ 72 chars. Mudanças no indicador referenciam a versão (ex.: `v1.1: ...`).
 - **Idioma:** documentação, comentários de pesquisa e commits em **português**. Código MQL5 segue o estilo já existente no `IFM.mq5` (identificadores em inglês, comentários curtos).

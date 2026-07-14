@@ -12,7 +12,8 @@ ifm-lab/
 │   ├── IFM.mq5          # versão principal do indicador (sempre a mais recente)
 │   └── variants/        # variantes experimentais que não são a versão principal
 ├── docs/
-│   └── IFM_GUIA.md      # guia completo da arquitetura (mantido em sincronia com src/IFM.mq5)
+│   ├── IFM_GUIA.md      # guia completo da arquitetura (mantido em sincronia com src/IFM.mq5)
+│   └── LEITURA.md       # playbook de interpretação: conhecimento validado que não muda o código
 ├── research/
 │   ├── README.md        # índice das pesquisas e convenção de organização
 │   └── _template/       # esqueleto para iniciar uma nova pesquisa
@@ -36,8 +37,8 @@ Modificações no indicador podem nascer de **pesquisa** ou de **decisão direta
 
 1. **Pergunta** → nasce uma pesquisa em `research/` (ver convenção em [research/README.md](research/README.md)).
 2. **Pesquisa** → scripts, dados e resultados ficam na pasta da pesquisa; a conclusão vai no `README.md` dela.
-3. **Decisão** → se a conclusão justifica mudança no indicador, a modificação é feita em `src/IFM.mq5` (ou vira variante).
-4. **Registro** → CHANGELOG atualizado (com link da pesquisa), `docs/IFM_GUIA.md` sincronizado, commit + tag.
+3. **Decisão** → a conclusão pode levar a: mudança em `src/IFM.mq5`, variante em `src/variants/`, **mudança de leitura** (entrada em `docs/LEITURA.md` — muda como interpretamos o indicador, não o código) ou descarte (também registrado; refutar hipótese é resultado).
+4. **Registro** → conforme o destino: CHANGELOG + guia sincronizado + tag (se mudou código) ou entrada em `docs/LEITURA.md` (se mudou só a leitura).
 
 **Caminho direto (sem pesquisa):**
 

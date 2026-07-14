@@ -21,5 +21,9 @@ Tabelas/figuras principais (arquivos em `results/`), com leitura objetiva de cad
 ## Conclusão
 
 - Resposta à pergunta.
-- Decisão tomada (mudança no indicador? variante? descarte?) e link para o que foi feito.
+- Decisão tomada e link para o que foi feito. Destinos possíveis:
+  - **Mudança no indicador** → `src/IFM.mq5` + CHANGELOG;
+  - **Variante** → `src/variants/`;
+  - **Mudança de leitura** → nova entrada em `docs/LEITURA.md` (o resultado muda como interpretamos/usamos o indicador, não o código);
+  - **Descarte** → hipótese refutada ou inconclusiva (registrar mesmo assim — saber o que *não* funciona é resultado).
 - Limitações e o que ficou em aberto.

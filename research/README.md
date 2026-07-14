@@ -19,7 +19,7 @@ Regras:
 - O `README.md` da pesquisa é o produto principal: alguém que leia só ele deve entender o que foi perguntado, como foi testado e o que se concluiu — sem rodar nada.
 - Dados brutos (barras, ticks, exports grandes) ficam em `data/` e **não são commitados**. O README documenta como regenerá-los (qual script de `tools/` ou da pesquisa, símbolo, período).
 - Resultados que sustentam a conclusão (tabelas finais, figuras) são pequenos e **são commitados** em `results/`.
-- Pesquisa que motivou mudança no indicador é referenciada no `CHANGELOG.md` da raiz.
+- Nem toda pesquisa relevante termina em código. Destinos possíveis de uma conclusão: **mudança no indicador** (referenciada no `CHANGELOG.md`), **variante** (`src/variants/`), **mudança de leitura** (entrada em `docs/LEITURA.md` — o resultado muda como interpretamos o indicador, não o que ele calcula) ou **descarte** (hipótese refutada/inconclusiva — também é resultado e fica registrado).
 - Ao criar ou concluir uma pesquisa, atualizar o índice abaixo.
 
 ## Índice
