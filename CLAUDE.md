@@ -31,7 +31,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 A mudança pode nascer de dois jeitos — ambos seguem os mesmos passos abaixo:
 
 - **Via pesquisa:** a conclusão de uma pesquisa em `research/` justifica a mudança.
-- **Direta:** o usuário decide modificar (ou criar variante) sem pesquisa prévia. Nesse caso a motivação é registrada em texto no CHANGELOG (e no cabeçalho da variante, se for variante).
+- **Direta:** o usuário decide a mudança sem pesquisa prévia — modificação, variante ou entrada de leitura em `docs/LEITURA.md`. Nesse caso a motivação é registrada em texto no CHANGELOG (e no cabeçalho da variante, se for variante); se for só entrada de leitura, a motivação vai na própria entrada, com confiança tipicamente "hipótese a confirmar".
 
 1. Entender a motivação da mudança (pesquisa ou decisão direta).
 2. Implementar em `src/IFM.mq5` (ou na variante, se for exploratório).

@@ -42,8 +42,8 @@ Modificações no indicador podem nascer de **pesquisa** ou de **decisão direta
 
 **Caminho direto (sem pesquisa):**
 
-1. **Decisão** → a modificação (ou variante) é implementada diretamente.
-2. **Registro** → mesmo rigor: CHANGELOG com a motivação em texto, `docs/IFM_GUIA.md` sincronizado, commit + tag.
+1. **Decisão** → a mudança é feita diretamente: modificação em `src/IFM.mq5`, variante em `src/variants/` ou entrada de leitura em `docs/LEITURA.md` (observação sobre como interpretar o indicador, sem pesquisa por trás — marcada com o nível de confiança correspondente).
+2. **Registro** → mesmo rigor: se mudou código, CHANGELOG com a motivação em texto + `docs/IFM_GUIA.md` sincronizado + commit + tag; se mudou só a leitura, a própria entrada em `docs/LEITURA.md` registra a motivação.
 
 Em ambos os caminhos, o que é inegociável é o **registro**: toda mudança permanente tem versão, motivação e documentação atualizada.
 
