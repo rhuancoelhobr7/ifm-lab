@@ -49,5 +49,5 @@ Em ambos os caminhos, o que é inegociável é o **registro**: toda mudança per
 
 ## Estado atual
 
-- **Versão:** 1.0 (`IFM-Z Metrics`)
+- **Versão:** 1.0
 - Nenhuma pesquisa iniciada ainda neste repositório.
