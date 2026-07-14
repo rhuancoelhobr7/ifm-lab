@@ -38,12 +38,12 @@ Modificações no indicador podem nascer de **pesquisa** ou de **decisão direta
 1. **Pergunta** → nasce uma pesquisa em `research/` (ver convenção em [research/README.md](research/README.md)).
 2. **Pesquisa** → scripts, dados e resultados ficam na pasta da pesquisa; a conclusão vai no `README.md` dela.
 3. **Decisão** → a conclusão pode levar a: mudança em `src/IFM.mq5`, variante em `src/variants/`, **mudança de leitura** (entrada em `docs/LEITURA.md` — muda como interpretamos o indicador, não o código) ou descarte (também registrado; refutar hipótese é resultado).
-4. **Registro** → conforme o destino: CHANGELOG + guia sincronizado + tag (se mudou código) ou entrada em `docs/LEITURA.md` (se mudou só a leitura).
+4. **Registro** → conforme o destino: CHANGELOG + `docs/IFM_GUIA.md` sincronizado + tag (se mudou código) ou entrada em `docs/LEITURA.md` (se mudou só a leitura).
 
 **Caminho direto (sem pesquisa):**
 
 1. **Decisão** → a modificação (ou variante) é implementada diretamente.
-2. **Registro** → mesmo rigor: CHANGELOG com a motivação em texto, guia sincronizado, commit + tag.
+2. **Registro** → mesmo rigor: CHANGELOG com a motivação em texto, `docs/IFM_GUIA.md` sincronizado, commit + tag.
 
 Em ambos os caminhos, o que é inegociável é o **registro**: toda mudança permanente tem versão, motivação e documentação atualizada.
 
