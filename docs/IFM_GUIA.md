@@ -1,6 +1,6 @@
 # Guia Completo — IFM (Índice de Força da Moeda) v1.0
 
-> **Arquivo:** `IFM.mq5` · **Tipo:** Indicador MetaTrader 5 (subjanela) · **Nome interno:** *IFM-Z Metrics*
+> **Arquivo:** `IFM.mq5` · **Tipo:** Indicador MetaTrader 5 (subjanela) · **Nome interno:** *IFM*
 
 Este documento mapeia **toda** a arquitetura do indicador: o que ele calcula, como calcula, o que aparece na tela e o que cada número significa. Conceitos complexos vêm sempre acompanhados de uma **💡 interpretação fácil**.
 
@@ -515,7 +515,7 @@ Topbar de 30 px (`DrawButtons`), sempre redesenhada por último (fica no topo):
 
 | Elemento | Função |
 |---|---|
-| **IFM-Z METRICS** | Título. |
+| **IFM** | Título. |
 | **MATRIZ** | Liga/desliga a matriz (a tabela de métricas se expande para a largura toda quando oculta). |
 | **ATUALIZAR** | Força um `Compute()` imediato (rebuild completo dos dados). |
 | **REPLAY / LIVE** | Entra/sai do modo replay. |
@@ -538,7 +538,7 @@ Permite "voltar no tempo" e ver o painel como ele estaria em qualquer barra fech
 
 ### `OnInit`
 1. Valida inputs do ML (RSI ≥ 2, memória ≥ 50, k ≥ 1).
-2. Registra os 4 buffers e o nome curto ("IFM-Z Metrics (auto Ns)").
+2. Registra os 4 buffers e o nome curto ("IFM (auto Ns)").
 3. Cria 11 handles de indicadores nativos do par ativo (3 RSIs, 2 ATRs, CCI, 2 EMAs sobre o RSI, 3 EMAs de preço).
 4. Inicializa o banco ML e os pesos (todos = 1.0).
 5. **Detecta os pares G8** no Market Watch (com `SymbolSelect` para garantir dados).

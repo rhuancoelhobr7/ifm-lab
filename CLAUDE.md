@@ -24,7 +24,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 - **Versionamento semântico simples:** minor (`v1.1`) para mudanças de comportamento/features; patch (`v1.0.1`) para correções sem mudança de lógica; major (`v2.0`) para reestruturações do núcleo (juízes, motor ML, fórmula da força S).
 - **Commits:** mensagem em português, imperativo, primeira linha ≤ 72 chars. Mudanças no indicador referenciam a versão (ex.: `v1.1: ...`).
 - **Idioma:** documentação, comentários de pesquisa e commits em **português**. Código MQL5 segue o estilo já existente no `IFM.mq5` (identificadores em inglês, comentários curtos).
-- **Nome do indicador:** na documentação do repo, o indicador se chama apenas **IFM** (arquivo `IFM.mq5`) — não usar apelidos ou nomes decorativos. Nota: o código v1.0 ainda registra o shortname interno "IFM-Z Metrics" (visível na subjanela do MT5); é legado e só muda se o usuário pedir alteração no código.
+- **Nome do indicador:** o indicador se chama apenas **IFM** (arquivo `IFM.mq5`), na documentação e no código (shortname, título da topbar, logs) — não usar apelidos ou nomes decorativos. "IFM-Z" permanece apenas como nome do *modo* do núcleo (`InpZCore`), em oposição a "IFM clássico".
 - **Python (pesquisas):** cada pesquisa declara suas dependências no próprio `README.md` (ou `requirements.txt` local se for extenso). Nada de venv commitado.
 
 ## Fluxo de alteração do indicador

@@ -1382,7 +1382,7 @@ void DrawButtons(int win)
 
    int by = 4, bh = TOPBAR_H - 8, x = 6;
 
-   Lbl(PFX+"title", win, x, TOPBAR_H/2, "IFM-Z METRICS", COL_TEXT, InpFont, ANCHOR_LEFT);
+   Lbl(PFX+"title", win, x, TOPBAR_H/2, "IFM", COL_TEXT, InpFont, ANCHOR_LEFT);
    x += 110;
 
    // Toggle da matriz (métricas ocupam a largura toda quando oculta)
@@ -1505,7 +1505,7 @@ bool Compute()
    for(int c = 0; c < 8; c++)
       if(!MetIsNan(g_metS[c][TF_H1_IDX][MET_RING-1])) valid++;
    bool ready = (g_pairsN > 0 && valid >= 4);
-   Comment(ready ? "" : "IFM-Z Metrics: carregando dados dos pares...");
+   Comment(ready ? "" : "IFM: carregando dados dos pares...");
 
    g_computing = false;
    return ready;
@@ -1520,7 +1520,7 @@ int OnInit()
    //--- Validate ML inputs
    if(InpRSILength < 2 || InpMemoryDepth < 50 || InpKNeighbors < 1)
    {
-      Print("IFM-Z Metrics: Invalid ML input parameters");
+      Print("IFM: Invalid ML input parameters");
       return INIT_PARAMETERS_INCORRECT;
    }
 
@@ -1534,7 +1534,7 @@ int OnInit()
    PlotIndexSetDouble(3, PLOT_EMPTY_VALUE, EMPTY_VALUE);
 
    IndicatorSetString(INDICATOR_SHORTNAME,
-      StringFormat("IFM-Z Metrics (auto %ds)", MathMax(InpRefreshSec, 10)));
+      StringFormat("IFM (auto %ds)", MathMax(InpRefreshSec, 10)));
    IndicatorSetInteger(INDICATOR_DIGITS, 1);
 
    //--- Create indicator handles (active pair — motor ML)
@@ -1559,7 +1559,7 @@ int OnInit()
       g_hEmaClose5==INVALID_HANDLE || g_hEmaClose50==INVALID_HANDLE ||
       g_hEmaClose21==INVALID_HANDLE)
    {
-      Print("IFM-Z Metrics: Failed to create indicator handles");
+      Print("IFM: Failed to create indicator handles");
       return INIT_FAILED;
    }
 
@@ -1592,7 +1592,7 @@ int OnInit()
       g_cnt[bi]++; g_cnt[qi]++; g_pairsN++;
       seen[key] = true;
    }
-   Print("IFM-Z Metrics: ", g_pairsN, " pares G8 detectados.");
+   Print("IFM: ", g_pairsN, " pares G8 detectados.");
 
    //--- Estado inicial
    g_ready     = false;
