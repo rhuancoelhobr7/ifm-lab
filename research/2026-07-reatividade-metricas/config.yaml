@@ -78,7 +78,7 @@ pairs:
   - CHFJPY
 
 mt5:
-  server_timezone: null      # ⏳ preencher no E1 (depende do broker); ex.: "Etc/GMT-3"
+  server_timezone: "UTC+3 verão / UTC+2 inverno (DST europeu; medido no E1)"
   symbol_suffix: ""          # ⏳ preencher no E1 se o broker usar sufixo (ex.: ".r")
   spread_historico: false    # MT5 não fornece spread histórico em barras (limitação
                              # documentada no esboço Q10) → custo por par vira
@@ -145,9 +145,18 @@ sessions:
   #   Londres ~12h e NY ~18h server — NÃO batem com a teoria (~10h e ~15h no
   #   verão) nem com os próprios candles citados (9º ≈ 8–9h, 18º ≈ 17–18h).
   calibracao_server:
-    status: pendente_E1
-    teoria_verao_utc3: {toquio: "03:00", londres: "10:00", ny: "15:00"}
-    observacao_usuario: {toquio: "03:00", londres: "12:00", ny: "18:00"}
+    # CONGELADO no E1 (2026-07-15, decidido por Léo). Evidência:
+    # results/E01_sessoes_assinatura.png + verificação verão×inverno da sessão E1.
+    # Medição: o servidor segue o DST EUROPEU (GMT+3 verão / GMT+2 inverno,
+    # offset_server_gmt_h=3.0 no _manifest.csv de julho). Consequência: Londres
+    # e NY são ESTÁVEIS em hora do servidor o ano todo (os fusos deles também
+    # têm DST); Tóquio (sem DST) desliza 1h entre estações. O salto de volume
+    # às 9h é a pré-abertura europeia (Frankfurt), não Londres.
+    status: congelado_E1
+    verao:   {toquio: "03:00", londres: "10:00", ny: "15:00"}
+    inverno: {toquio: "02:00", londres: "10:00", ny: "15:00"}
+    teoria_verao_utc3: {toquio: "03:00", londres: "10:00", ny: "15:00"}   # ✔ confirmada pelos dados
+    observacao_usuario: {toquio: "03:00", londres: "12:00", ny: "18:00"}  # Londres/NY refutadas pelos dados
 
 # ----------------------------------------------------------------------------
 # Gabarito de eventos (ESBOÇO §1.1–1.2) — definição CANDIDATA.

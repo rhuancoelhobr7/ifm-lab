@@ -40,6 +40,21 @@ def carrega_config() -> dict:
         return yaml.safe_load(f)
 
 
+def tempo_servidor(df: pd.DataFrame, arquivo: str) -> pd.Series:
+    """Hora do servidor da barra, nos dois esquemas presentes em data/raw/.
+
+    Esquema documentado (ExportBarsG8 v1.00): coluna `time_epoch` (segundos Unix
+    no fuso do servidor). Esquema legado (export anterior, arquivos que o manifest
+    marcou `pulado_existia` — M30/H1): coluna `time` como texto
+    "YYYY.MM.DD HH:MM:SS", também em hora do servidor.
+    """
+    if "time_epoch" in df.columns:
+        return pd.to_datetime(df["time_epoch"], unit="s")
+    if "time" in df.columns:
+        return pd.to_datetime(df["time"], format="%Y.%m.%d %H:%M:%S")
+    raise KeyError(f"{arquivo}: nenhuma coluna de tempo reconhecida (time_epoch/time)")
+
+
 def periodo_esperado(cfg: dict, tf: str) -> tuple[datetime, datetime]:
     for camada in cfg["timeframes"].values():
         if isinstance(camada, dict) and tf.replace("MN1", "MN") in [t.replace("MN1", "MN") for t in camada.get("tfs", [])]:
@@ -62,8 +77,9 @@ def eh_gap_de_fim_de_semana(t0: pd.Timestamp, t1: pd.Timestamp) -> bool:
 
 def analisa_arquivo(path: Path, tf: str, cfg: dict) -> dict:
     df = pd.read_csv(path)
-    info: dict = {"arquivo": path.name, "linhas": len(df)}
-    t = pd.to_datetime(df["time_epoch"], unit="s")
+    info: dict = {"arquivo": path.name, "linhas": len(df),
+                  "esquema_legado": "time_epoch" not in df.columns}
+    t = tempo_servidor(df, path.name)
     info["primeira"] = t.iloc[0]
     info["ultima"] = t.iloc[-1]
     info["duplicatas"] = int(t.duplicated().sum())
@@ -74,15 +90,18 @@ def analisa_arquivo(path: Path, tf: str, cfg: dict) -> dict:
     ini_esp, fim_esp = periodo_esperado(cfg, tf)
     info["inicio_esperado"] = ini_esp
     info["fim_esperado"] = fim_esp
-    # tolerância: 5 barras no início (broker pode não ter a primeira semana exata)
+    # tolerância no início: 5 barras OU 5 dias corridos, o que for maior — o
+    # 1º de janeiro pode cair em feriado colado no fim de semana (ex.: 2021),
+    # e a primeira barra legítima é o primeiro pregão do ano.
     tf_sec = TF_SECONDS.get(tf)
-    tol = timedelta(seconds=5 * tf_sec) if tf_sec else timedelta(days=45)
+    tol = max(timedelta(seconds=5 * tf_sec), timedelta(days=5)) if tf_sec else timedelta(days=45)
     info["cobre_inicio"] = bool(t.iloc[0] <= pd.Timestamp(ini_esp) + tol)
     info["cobre_fim"] = bool(t.iloc[-1] >= pd.Timestamp(fim_esp) - tol)
 
     # buracos (só TFs intradiários + D1; W1/MN têm calendário irregular)
     max_gap = cfg["nan"]["buraco_max_barras"]
     info["gaps_pequenos"] = info["gaps_grandes"] = 0
+    info["gaps_lista"] = []          # (t_antes, t_depois, barras_faltando) dos >3
     if tf_sec and tf != "W1":
         dt = t.diff().dt.total_seconds().iloc[1:]
         for i, secs in dt[dt > tf_sec].items():
@@ -95,7 +114,41 @@ def analisa_arquivo(path: Path, tf: str, cfg: dict) -> dict:
                 info["gaps_pequenos"] += 1
             else:
                 info["gaps_grandes"] += 1
+                info["gaps_lista"].append((t.iloc[i - 1], t.iloc[i], barras_faltando))
     return info
+
+
+def classifica_gaps(infos: dict, tf: str, min_pares_global: int = 26
+                    ) -> tuple[list[dict], list[dict]]:
+    """Separa os buracos >3 barras de um TF em fechamentos globais × específicos.
+
+    💡 Em linguagem simples: se 26+ dos 28 pares ficam sem barras NA MESMA janela
+    de tempo, o mercado (ou o feed do servidor) fechou para todo mundo — feriado
+    tipo Natal/Ano-Novo ou queda do feed. Isso não é defeito de um arquivo; vira
+    "janela de exclusão" para o pipeline. Buraco que só aparece num par é
+    problema daquele par (também excluído, mas listado separadamente).
+    Janelas são agrupadas por SOBREPOSIÇÃO (feriados param os pares em minutos
+    ligeiramente diferentes, então exigir janela idêntica subestimaria).
+    """
+    eventos = []                     # (t0, t1, par, barras)
+    for (par, t), v in infos.items():
+        if t != tf:
+            continue
+        eventos += [(g[0], g[1], par, g[2]) for g in v["gaps_lista"]]
+    eventos.sort(key=lambda e: e[0])
+    clusters: list[dict] = []
+    for t0, t1, par, barras in eventos:
+        if clusters and t0 <= clusters[-1]["fim"]:
+            c = clusters[-1]
+            c["fim"] = max(c["fim"], t1)
+            c["pares"].add(par)
+            c["eventos"].append((par, t0, t1, barras))
+        else:
+            clusters.append({"inicio": t0, "fim": t1, "pares": {par},
+                             "eventos": [(par, t0, t1, barras)]})
+    globais = [c for c in clusters if len(c["pares"]) >= min_pares_global]
+    especificos = [c for c in clusters if len(c["pares"]) < min_pares_global]
+    return globais, especificos
 
 
 def assinatura_sessoes(cfg: dict) -> tuple[Path | None, str]:
@@ -106,7 +159,7 @@ def assinatura_sessoes(cfg: dict) -> tuple[Path | None, str]:
     vol, mov = [], []
     for f in arquivos:
         df = pd.read_csv(f)
-        t = pd.to_datetime(df["time_epoch"], unit="s")
+        t = tempo_servidor(df, f.name)
         h = t.dt.hour
         v = df["tick_volume"] / max(df["tick_volume"].mean(), 1e-9)   # normaliza por par
         r = (np.abs(np.log(df["close"] / df["open"])))
@@ -184,9 +237,12 @@ def main() -> int:
                 sufixo_detectado = base[len(par):]
             infos[(par, tf)] = analisa_arquivo(arq, tf, cfg)
 
-    # --- tabela de cobertura (linhas × cobre início/fim) por TF
+    # --- tabela de cobertura + classificação dos buracos >3 barras por TF
     linhas_cov = []
     problemas: list[str] = []
+    linhas_globais: list[list[str]] = []
+    linhas_espec: list[list[str]] = []
+    excl_rows: list[dict] = []       # janelas de exclusão → CSV consumido pelo E2
     for tf in TF_ORDER:
         tf_infos = [v for (p, t), v in infos.items() if t == tf]
         if not tf_infos:
@@ -197,29 +253,73 @@ def main() -> int:
         ini_ok = sum(1 for i in tf_infos if i["cobre_inicio"])
         fim_ok = sum(1 for i in tf_infos if i["cobre_fim"])
         gp = sum(i["gaps_pequenos"] for i in tf_infos)
-        gg = sum(i["gaps_grandes"] for i in tf_infos)
         inval = sum(i["duplicatas"] + i["fora_de_ordem"] + i["precos_invalidos"] for i in tf_infos)
-        linhas_cov.append([tf, n, f"{rows_min}–{rows_max}", f"{ini_ok}/{n}", f"{fim_ok}/{n}", gp, gg, inval])
+        globais, especificos = classifica_gaps(infos, tf)
+        n_ev_glob = sum(len(c["eventos"]) for c in globais)
+        n_ev_esp = sum(len(c["eventos"]) for c in especificos)
+        linhas_cov.append([tf, n, f"{rows_min}–{rows_max}", f"{ini_ok}/{n}", f"{fim_ok}/{n}",
+                           gp, f"{n_ev_glob} em {len(globais)} janela(s)", n_ev_esp, inval])
+        for c in globais:
+            linhas_globais.append([tf, str(c["inicio"]), str(c["fim"]), f"{len(c['pares'])}/28"])
+            excl_rows.append({"tf": tf, "tipo": "fechamento_global", "par": "*",
+                              "inicio": c["inicio"], "fim": c["fim"], "n_pares": len(c["pares"])})
+        for c in especificos:
+            for par, t0, t1, barras in c["eventos"]:
+                linhas_espec.append([tf, par, str(t0), str(t1), barras])
+                excl_rows.append({"tf": tf, "tipo": "especifico_par", "par": par,
+                                  "inicio": t0, "fim": t1, "n_pares": len(c["pares"])})
         if ini_ok < n:
-            problemas.append(f"{tf}: {n - ini_ok} par(es) não cobrem o início do período esperado")
+            primeira_tipica = min(i["primeira"] for i in tf_infos)
+            esperado = tf_infos[0]["inicio_esperado"].date()
+            problemas.append(
+                f"{tf}: {n - ini_ok} par(es) não cobrem o início do período esperado — "
+                f"config pede {esperado}, primeira barra disponível é {primeira_tipica} "
+                f"(ação 👤: reexportar este TF no MT5 desde {esperado}; se os arquivos antigos "
+                f"estiverem na pasta do export, apagá-los antes, senão o ExportBarsG8 os pula)")
         if fim_ok < n:
             problemas.append(f"{tf}: {n - fim_ok} par(es) não chegam ao fim do período esperado")
-        if gg > 0:
-            problemas.append(f"{tf}: {gg} buraco(s) > {cfg['nan']['buraco_max_barras']} barras (janelas a excluir)")
         if inval > 0:
             problemas.append(f"{tf}: {inval} linha(s) com duplicata/ordem/preço inválido")
     if ausentes:
         problemas.append(f"{len(ausentes)} arquivo(s) ausente(s): " + ", ".join(ausentes[:15])
                          + (" …" if len(ausentes) > 15 else ""))
 
+    excl_csv = RESULTS / "E01_janelas_excluidas.csv"
+    pd.DataFrame(excl_rows).to_csv(excl_csv, index=False)
+
     tab_cov = md_tabela(linhas_cov,
                         ["TF", "arquivos", "linhas (mín–máx)", "cobre início", "cobre fim",
-                         "buracos ≤3 (viram NaN)", "buracos >3 (excluir)", "linhas inválidas"])
+                         "buracos ≤3 (viram NaN)", "buracos >3 globais (fechamento)",
+                         "buracos >3 específicos", "linhas inválidas"])
     leitura_cov = ("**Leitura:** cada linha resume um timeframe: quantos pares chegaram, se o histórico "
                    "cobre o período pedido no config.yaml e quantos buracos existem fora de fim de semana. "
-                   "Bom = 28 arquivos por TF, cobre início/fim 28/28 e coluna de buracos >3 zerada; "
-                   + ("**este export está nesse estado — aprovado.**" if not problemas
-                      else f"aqui há pendências ({len(problemas)}), detalhadas abaixo — resolver antes do E2."))
+                   "Buracos >3 barras NÃO bloqueiam o E2: viram janelas de exclusão "
+                   "(regra congelada no PLANO §7), gravadas em E01_janelas_excluidas.csv. "
+                   "Bloqueia = arquivo ausente, período não coberto ou linha inválida; "
+                   + ("**nada disso ocorre — cobertura aprovada.**" if not problemas
+                      else f"aqui há {len(problemas)} pendência(s) desse tipo, detalhadas abaixo."))
+
+    tab_glob = md_tabela(linhas_globais, ["TF", "sem barras desde", "até", "pares afetados"])
+    leitura_glob = ("**Leitura:** janelas em que 26+ dos 28 pares ficam sem barras ao MESMO tempo — "
+                    "mercado fechado (Natal, Ano-Novo) ou feed do servidor fora do ar. "
+                    "💡 Não é defeito dos arquivos: se todo mundo apagou junto, foi o mercado que fechou. "
+                    "Essas janelas saem da análise (exclusão), e é bom que o pipeline não tente "
+                    "interpretá-las como 'ausência de tendência'.")
+
+    top_espec = sorted(linhas_espec, key=lambda l: -l[4])[:10]
+    tab_espec = md_tabela([[l[0], l[1], l[2], l[3], l[4]] for l in top_espec],
+                          ["TF", "par", "sem barras desde", "até", "barras faltando"])
+    leitura_espec = (f"**Leitura:** os 10 maiores buracos que afetam POUCOS pares (lista completa: "
+                     f"{len(linhas_espec)} janelas no E01_janelas_excluidas.csv). Quase todos caem em "
+                     f"feriados (24–25/12, 31/12–01/01, feriados UK/EUA) em que os pares param em minutos "
+                     f"diferentes — mesma natureza dos globais. O caso a vigiar é o par GBPNZD, que tem os "
+                     f"maiores buracos individuais; as janelas dele ficam excluídas como as demais.")
+
+    tfs_legado = sorted({t for (p, t), v in infos.items() if v["esquema_legado"]})
+    n_legado = sum(1 for v in infos.values() if v["esquema_legado"])
+    nota_legado = (f" · **{n_legado} arquivo(s) em esquema legado** (coluna `time`, export anterior; "
+                   f"TFs: {', '.join(tfs_legado)}) — mesmos dados OHLCV, hora do servidor igual"
+                   if n_legado else "")
 
     fig, leitura_fig = assinatura_sessoes(cfg)
 
@@ -238,17 +338,34 @@ Para cada arquivo par×TF: contagem de linhas, primeira/última barra vs. perío
 duplicatas, barras fora de ordem, preços inválidos e buracos — intervalos entre barras
 consecutivas maiores que o TF, ignorando os que contêm sábado (💡 fim de semana é fechamento
 normal do mercado, não defeito). Buracos ≤ {cfg['nan']['buraco_max_barras']} barras viram NaN
-(regra do painel); maiores marcam janelas a excluir (Plano B do PLANO §7). A assinatura das
+(regra do painel); maiores marcam janelas a excluir (Plano B do PLANO §7) e são classificados:
+**fechamento global** quando 26+ dos 28 pares apagam na mesma janela (feriado ou feed fora do ar)
+vs. **específico de par** (buraco só daquele símbolo). Ambos saem da análise; a lista completa vai
+para `E01_janelas_excluidas.csv`, que o pipeline (E2/E4) consome. A assinatura das
 sessões vem do H1 de todos os pares: tick volume e |retorno| médios por hora do servidor,
 normalizados por par (💡 senão os pares mais líquidos dominariam a média).
 
 ## Resultados
 
-**Export:** {offset_txt}{f" · sufixo de símbolo detectado: `{sufixo_detectado}`" if sufixo_detectado else ""}
+**Export:** {offset_txt}{f" · sufixo de símbolo detectado: `{sufixo_detectado}`" if sufixo_detectado else ""}{nota_legado}
 
 {tab_cov}
 
 {leitura_cov}
+
+### Janelas de fechamento global (mercado/feed parado para todos)
+
+{tab_glob}
+
+{leitura_glob}
+
+### Buracos específicos de par
+
+{tab_espec}
+
+{leitura_espec}
+
+### Assinatura das sessões
 
 {f"![Assinatura das sessões](E01_sessoes_assinatura.png)" if fig else "_(figura de sessões não gerada)_"}
 

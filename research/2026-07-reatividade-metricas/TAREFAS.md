@@ -3,7 +3,7 @@
 Legenda: [ ] pendente · [~] em andamento · [x] concluída (evidência) · [!] bloqueada (motivo) · [-] cancelada (motivo)
 Regras: checkbox só marca com evidência · portões P1–P4 só marcam com decisão do usuário no PROGRESS.md
 Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências + portões + template didático §1.2)
-Última atualização: 2026-07-15 · sessão E1 (parte Claude)
+Última atualização: 2026-07-15 · sessão E1 (inventário — Léo)
 
 ## BLOCO A — Fundação
 ### E0 — Setup
@@ -17,7 +17,7 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Script MQL5 tools/export_bars/ escrito e documentado (8 TFs: M5…MN) (tools/export_bars/ExportBarsG8.mq5, tools/export_bars/README.md)
 - [x] Script de inventário pronto para rodar sobre os CSVs (scripts/e01_inventario.py)
 - [x] 👤 Export rodado no MT5, CSVs em data/raw/ (data/raw/_manifest.csv)
-- [ ] Inventário de cobertura sem buracos críticos (results/E01_inventario.md)
+- [!] Inventário de cobertura sem buracos críticos (bloqueada: M30/H1 do export legado começam em 2022-01-03 e o config exige 2021-01-01 — reexportar 👤; relatório pronto em results/E01_inventario.md; sessões já calibradas e congeladas no config.yaml)
 ### E2 — Pipeline Python
 - [ ] Cadeia IFM Light → S → derivadas implementada (config.yaml, sem hard-code, incl. W1/MN)
 - [ ] Testes unitários com fixtures sintéticas verdes (pytest)

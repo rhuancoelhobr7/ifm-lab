@@ -44,6 +44,7 @@ A mudança pode nascer de dois jeitos — ambos seguem os mesmos passos abaixo:
 
 ## Execução de pesquisas (convenções)
 
+- **Autoridade do projeto (registrado 2026-07-15):** Léo e Rhuan têm autoridade **igual** sobre o projeto e as pesquisas. Portões P1–P4 e auditorias podem ser carimbados por **qualquer um dos dois**; a decisão registrada no `PROGRESS.md` indica **quem** decidiu e vale para ambos.
 - Toda sessão de trabalho numa pesquisa **abre lendo** `PROGRESS.md` + `TAREFAS.md` da pesquisa e **fecha com commit único** (trabalho + TAREFAS + PROGRESS) após `python scripts/check_tarefas.py` verde — o validador falhando bloqueia o commit.
 - Checkbox de tarefa só marca `[x]` com **evidência verificável** (arquivo no repo ou hash de commit). Portões (decisões do usuário) só marcam com a decisão registrada no `PROGRESS.md`.
 - Relatórios em `results/` seguem o **template didático** do PLANO da pesquisa: seções obrigatórias, linha `**Leitura:**` após cada tabela/figura, confronto explícito com os critérios congelados.
