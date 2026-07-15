@@ -6,7 +6,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 
 - **Versão principal:** v1.0 (`src/IFM.mq5`, ~2033 linhas).
 - **Documentação:** `docs/IFM_GUIA.md` cobre 100% da arquitetura da v1.0; `docs/LEITURA.md` (playbook de interpretação) ainda sem entradas.
-- **Pesquisas:** nenhuma iniciada ainda.
+- **Pesquisas:** `research/2026-07-reatividade-metricas/` em andamento (E0 — setup; reatividade das métricas do painel G8, perfil intraday). Governança da pesquisa: PLANO.md + TAREFAS.md + PROGRESS.md na pasta da pesquisa; validador `scripts/check_tarefas.py` roda antes de todo commit da pesquisa.
 - **Variantes:** nenhuma ainda.
 
 ## Regras invioláveis
@@ -14,7 +14,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 1. **`src/IFM.mq5` é sempre a versão mais recente.** O nome do arquivo nunca ganha rótulo de versão. Versões são marcadas com git tag (`v1.0`, `v1.1`, ...) + entrada no `CHANGELOG.md`. Nunca criar duplicatas físicas do arquivo para versionar.
 2. **Toda modificação no indicador atualiza `docs/IFM_GUIA.md` no mesmo commit.** Guia dessincronizado é considerado bug.
 3. **Modificações permanentes precisam de justificativa registrada no CHANGELOG e na mensagem de commit.** Há dois caminhos válidos: **via pesquisa** (a entrada aponta para a pesquisa em `research/` que a motivou) e **direta** (ideia, correção, ajuste empírico ou decisão do usuário — sem pesquisa prévia; a entrada registra a motivação em texto). Pesquisa não é pré-requisito para modificar o indicador; justificativa registrada é.
-4. **Dados brutos de mercado não entram no git** (barras, ticks, exports grandes). Ficam em `data/` dentro da pasta da pesquisa (gitignorados). Só entram scripts, resultados agregados/pequenos e conclusões.
+4. **Dados brutos de mercado não entram no git** (barras, ticks, exports grandes). Ficam em `data/` dentro da pasta da pesquisa (gitignorados). Só entram scripts, resultados agregados/pequenos e conclusões. *Exceção registrada (2026-07-15): o `data/raw/` da pesquisa `2026-07-reatividade-metricas` é versionado por decisão do usuário — repo compartilhado com colaborador que precisa dos mesmos CSVs. Derivados (parquet/cache/sealed) continuam fora.*
 5. **Variantes** que não substituem a versão principal vão para `src/variants/` com sufixo identificador (ex.: `IFM-X.mq5`). Cada variante deve ter um comentário de cabeçalho explicando no que difere da principal.
 
 ## Convenções
@@ -41,6 +41,14 @@ A mudança pode nascer de dois jeitos — ambos seguem os mesmos passos abaixo:
 5. Atualizar a seção "Estado atual" deste arquivo.
 6. Commit único com tudo + `git tag vX.Y`.
 7. Push com tags: `git push --follow-tags`.
+
+## Execução de pesquisas (convenções)
+
+- Toda sessão de trabalho numa pesquisa **abre lendo** `PROGRESS.md` + `TAREFAS.md` da pesquisa e **fecha com commit único** (trabalho + TAREFAS + PROGRESS) após `python scripts/check_tarefas.py` verde — o validador falhando bloqueia o commit.
+- Checkbox de tarefa só marca `[x]` com **evidência verificável** (arquivo no repo ou hash de commit). Portões (decisões do usuário) só marcam com a decisão registrada no `PROGRESS.md`.
+- Relatórios em `results/` seguem o **template didático** do PLANO da pesquisa: seções obrigatórias, linha `**Leitura:**` após cada tabela/figura, confronto explícito com os critérios congelados.
+- O bloco de **teste selado** (`data/sealed/`) só é lido na etapa final prevista no PLANO; scripts de análise recusam esse caminho.
+- O PLANO da pesquisa é **imutável** após o setup — desvios viram adendos datados, nunca edição por cima.
 
 ## Contexto técnico essencial
 

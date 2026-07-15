@@ -8,6 +8,15 @@ tools/**/data/
 # podem ser commitados explicitamente com `git add -f` quando fizer sentido
 research/**/raw/
 
+# EXCEÇÃO (2026-07-15, decisão do usuário): os CSVs brutos da pesquisa
+# reatividade-metricas SÃO versionados — o repo é compartilhado com um
+# colaborador que rodará fases da pesquisa e precisa dos mesmos dados.
+# Derivados regeneráveis (parquet, cache, sealed) continuam fora.
+!research/2026-07-reatividade-metricas/data/
+research/2026-07-reatividade-metricas/data/**
+!research/2026-07-reatividade-metricas/data/raw/
+!research/2026-07-reatividade-metricas/data/raw/**
+
 # Python
 __pycache__/
 *.pyc
