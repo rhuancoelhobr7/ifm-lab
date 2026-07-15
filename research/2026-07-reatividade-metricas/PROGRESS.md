@@ -36,4 +36,6 @@ _Nenhuma no momento._
 
 ## Próxima etapa
 
-CSVs já em `data/raw/` (recebidos 2026-07-15). Próxima sessão: **rodar `scripts/e01_inventario.py`** (inventário adiado a pedido do usuário — economia de tokens) → fechar E1 + confirmar sessões em hora do servidor → **E2 — Pipeline de métricas em Python**.
+CSVs já em `data/raw/` (recebidos 2026-07-15). O export veio com BÔNUS não solicitado: `golden_strength.csv` (S por moeda × TF × shift, 401 linhas), `golden_metrics.csv` e `golden_ifm_pairs.csv` — aparentemente o **export do replay do indicador**, insumo do E3/paridade (verificar formato e origem com o usuário antes de usar como verdade). `server_meta.csv` confirma servidor MetaQuotes-Demo = **GMT+3** (offset 10800 s) → teoria das sessões corrobora: Tóquio ~3h, Londres ~10h, NY ~15h server no verão; confirmação final na figura do inventário.
+
+Próxima sessão: **rodar `scripts/e01_inventario.py`** (adiado a pedido do usuário — economia de tokens) → fechar E1 + congelar sessões em hora do servidor → **E2 — Pipeline de métricas em Python**.
