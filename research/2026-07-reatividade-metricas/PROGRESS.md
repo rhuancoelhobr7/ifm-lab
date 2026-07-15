@@ -21,10 +21,11 @@
 
 _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada aqui._
 
+**2026-07-15 — `data/raw/` desta pesquisa é VERSIONADO no git** (decisão do usuário, exceção à regra 4 do CLAUDE.md registrada lá e no .gitignore): o repo será compartilhado com um colaborador que rodará fases da pesquisa e precisa dos mesmos CSVs. Derivados regeneráveis (parquet, cache, sealed) continuam gitignorados. Export do usuário recebido em 2026-07-15: 229 arquivos, 549 MB.
+
 ## Pendências que dependem do usuário (👤)
 
-1. **Rodar o export no MT5** seguindo `tools/export_bars/README.md` (compilar `ExportBarsG8.mq5`, rodar até `0 falhas`, copiar `MQL5\Files\IFM_export\` inteiro — incluindo `_manifest.csv` — para `data/raw/` desta pesquisa).
-2. Avisar o Claude Code para rodar `scripts/e01_inventario.py` → fecha o E1 e confirma as sessões em hora do servidor.
+_Nenhuma no momento._
 
 ## Log de sessões
 
@@ -35,4 +36,4 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 
 ## Próxima etapa
 
-👤 usuário roda o export no MT5 e deposita os CSVs em `data/raw/` → Claude roda o inventário (fecha E1) → **E2 — Pipeline de métricas em Python** (fixtures sintéticas + pytest antes de dado real; Parquet M30–D1 + W1/MN).
+CSVs já em `data/raw/` (recebidos 2026-07-15). Próxima sessão: **rodar `scripts/e01_inventario.py`** (inventário adiado a pedido do usuário — economia de tokens) → fechar E1 + confirmar sessões em hora do servidor → **E2 — Pipeline de métricas em Python**.

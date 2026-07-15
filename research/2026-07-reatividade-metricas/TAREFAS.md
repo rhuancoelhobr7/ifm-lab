@@ -16,7 +16,7 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 ### E1 — Exportador (👤 MT5)
 - [x] Script MQL5 tools/export_bars/ escrito e documentado (8 TFs: M5…MN) (tools/export_bars/ExportBarsG8.mq5, tools/export_bars/README.md)
 - [x] Script de inventário pronto para rodar sobre os CSVs (scripts/e01_inventario.py)
-- [ ] 👤 Export rodado no MT5, CSVs em data/raw/
+- [x] 👤 Export rodado no MT5, CSVs em data/raw/ (data/raw/_manifest.csv)
 - [ ] Inventário de cobertura sem buracos críticos (results/E01_inventario.md)
 ### E2 — Pipeline Python
 - [ ] Cadeia IFM Light → S → derivadas implementada (config.yaml, sem hard-code, incl. W1/MN)

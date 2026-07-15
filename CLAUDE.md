@@ -14,7 +14,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 1. **`src/IFM.mq5` é sempre a versão mais recente.** O nome do arquivo nunca ganha rótulo de versão. Versões são marcadas com git tag (`v1.0`, `v1.1`, ...) + entrada no `CHANGELOG.md`. Nunca criar duplicatas físicas do arquivo para versionar.
 2. **Toda modificação no indicador atualiza `docs/IFM_GUIA.md` no mesmo commit.** Guia dessincronizado é considerado bug.
 3. **Modificações permanentes precisam de justificativa registrada no CHANGELOG e na mensagem de commit.** Há dois caminhos válidos: **via pesquisa** (a entrada aponta para a pesquisa em `research/` que a motivou) e **direta** (ideia, correção, ajuste empírico ou decisão do usuário — sem pesquisa prévia; a entrada registra a motivação em texto). Pesquisa não é pré-requisito para modificar o indicador; justificativa registrada é.
-4. **Dados brutos de mercado não entram no git** (barras, ticks, exports grandes). Ficam em `data/` dentro da pasta da pesquisa (gitignorados). Só entram scripts, resultados agregados/pequenos e conclusões.
+4. **Dados brutos de mercado não entram no git** (barras, ticks, exports grandes). Ficam em `data/` dentro da pasta da pesquisa (gitignorados). Só entram scripts, resultados agregados/pequenos e conclusões. *Exceção registrada (2026-07-15): o `data/raw/` da pesquisa `2026-07-reatividade-metricas` é versionado por decisão do usuário — repo compartilhado com colaborador que precisa dos mesmos CSVs. Derivados (parquet/cache/sealed) continuam fora.*
 5. **Variantes** que não substituem a versão principal vão para `src/variants/` com sufixo identificador (ex.: `IFM-X.mq5`). Cada variante deve ter um comentário de cabeçalho explicando no que difere da principal.
 
 ## Convenções
