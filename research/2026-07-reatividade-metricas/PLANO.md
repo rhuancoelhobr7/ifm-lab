@@ -349,3 +349,9 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 ```
 
 **Mecânica de preenchimento automático:** o fluxo de toda sessão do Claude Code é fixo — (1) abrir lendo `PROGRESS.md` + `TAREFAS.md`; (2) marcar `[~]` no que vai atacar; (3) trabalhar; (4) marcar `[x] (evidência)` no que concluiu; (5) rodar `check_tarefas.py` (evidências + portões + **conformidade didática §1.2**); (6) commit único com trabalho + lista + PROGRESS. O validador falhando **bloqueia o commit** — não existe caminho para concluir trabalho sem a lista refletir, nem para entregar resultado sem explicação que o dono da pesquisa entenda.
+
+---
+
+## Adendos
+
+**2026-07-15 (fechamento do E0) — sessões: definição congela, mapeamento para hora do servidor é calibrado no E1.** As janelas de sessão congelam como previsto, mas definidas no **fuso local de cada praça** (IANA: Tóquio 09–18 `Asia/Tokyo`, Londres 08–17 `Europe/London`, NY 08–17 `America/New_York`), e não em hora fixa do servidor. Motivo: o usuário observou aberturas em hora do servidor (Tóquio ~3h ✔; Londres ~12h; NY ~18h) que divergem da teoria (server MetaQuotes = UTC+2/+3 → Londres ~10h, NY ~15h no verão) e são internamente inconsistentes com os candles citados (9º ≈ 8–9h) — e ele próprio marcou a observação como incerta. Em vez de congelar um chute, o mapeamento sessão↔servidor vira **medição do E1**: o exportador grava o offset server↔GMT no `_manifest.csv` e o `e01_inventario.py` gera a assinatura de volume/volatilidade por hora do servidor. O que isso invalida: nada — nenhuma análise depende disso antes do E4; a única consequência é que a confirmação final das janelas de sessão acontece junto com o inventário do E1 (registrada no PROGRESS), não no fechamento do E0. Períodos, splits e critérios C1–C11 foram confirmados pelo usuário em 2026-07-15 sem alteração.

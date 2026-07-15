@@ -3,7 +3,7 @@
 Legenda: [ ] pendente · [~] em andamento · [x] concluída (evidência) · [!] bloqueada (motivo) · [-] cancelada (motivo)
 Regras: checkbox só marca com evidência · portões P1–P4 só marcam com decisão do usuário no PROGRESS.md
 Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências + portões + template didático §1.2)
-Última atualização: 2026-07-15 · sessão E0
+Última atualização: 2026-07-15 · sessão E1 (parte Claude)
 
 ## BLOCO A — Fundação
 ### E0 — Setup
@@ -12,9 +12,10 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] config.yaml com: TFs/períodos, janelas de sessão (DST), definição candidata do evento + 2 âncoras, splits (config.yaml)
 - [x] scripts/check_tarefas.py criado e rodando (evidências + portões + template didático §1.2) (scripts/check_tarefas.py)
 - [x] Índice research/README.md atualizado (research/README.md)
-- [ ] 👤 Períodos, sessões e critérios C1–C11 confirmados pelo usuário (congelamento)
+- [x] 👤 Períodos, sessões e critérios C1–C11 confirmados pelo usuário (congelamento) (PROGRESS.md, PLANO.md)
 ### E1 — Exportador (👤 MT5)
-- [ ] Script MQL5 tools/export_bars/ escrito e documentado (8 TFs: M5…MN)
+- [x] Script MQL5 tools/export_bars/ escrito e documentado (8 TFs: M5…MN) (tools/export_bars/ExportBarsG8.mq5, tools/export_bars/README.md)
+- [x] Script de inventário pronto para rodar sobre os CSVs (scripts/e01_inventario.py)
 - [ ] 👤 Export rodado no MT5, CSVs em data/raw/
 - [ ] Inventário de cobertura sem buracos críticos (results/E01_inventario.md)
 ### E2 — Pipeline Python

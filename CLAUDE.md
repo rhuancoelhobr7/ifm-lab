@@ -42,6 +42,14 @@ A mudança pode nascer de dois jeitos — ambos seguem os mesmos passos abaixo:
 6. Commit único com tudo + `git tag vX.Y`.
 7. Push com tags: `git push --follow-tags`.
 
+## Execução de pesquisas (convenções)
+
+- Toda sessão de trabalho numa pesquisa **abre lendo** `PROGRESS.md` + `TAREFAS.md` da pesquisa e **fecha com commit único** (trabalho + TAREFAS + PROGRESS) após `python scripts/check_tarefas.py` verde — o validador falhando bloqueia o commit.
+- Checkbox de tarefa só marca `[x]` com **evidência verificável** (arquivo no repo ou hash de commit). Portões (decisões do usuário) só marcam com a decisão registrada no `PROGRESS.md`.
+- Relatórios em `results/` seguem o **template didático** do PLANO da pesquisa: seções obrigatórias, linha `**Leitura:**` após cada tabela/figura, confronto explícito com os critérios congelados.
+- O bloco de **teste selado** (`data/sealed/`) só é lido na etapa final prevista no PLANO; scripts de análise recusam esse caminho.
+- O PLANO da pesquisa é **imutável** após o setup — desvios viram adendos datados, nunca edição por cima.
+
 ## Contexto técnico essencial
 
 - O indicador tem duas metades: **Motor ML** (par ativo, 5 juízes, buffers IFM/ML_RSI/Rank/Conf) e **Painel G8** (IFM Light de 4 juízes, força S por moeda, métricas zvel/zS/zMov/zHist, matriz 8x8). Detalhes completos em `docs/IFM_GUIA.md`.

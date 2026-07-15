@@ -1,6 +1,6 @@
 # Reatividade das métricas do painel G8 (perfil intraday)
 
-> **Status:** em andamento (E0 — setup)
+> **Status:** em andamento (E1 — export de dados; aguardando MT5 do usuário)
 > **Período:** 2026-07-15 → (em curso)
 > **Relacionada a:** IFM v1.0 (`src/IFM.mq5`) — painel G8 (força S e derivadas). O motor ML kNN do par ativo fica **fora** (vira pesquisa própria depois).
 > **Documentos-mãe:** [ESBOCO.md](ESBOCO.md) (o quê e por quê) · [PLANO.md](PLANO.md) (como, critérios congelados C1–C11, etapas E0–E12) · [config.yaml](config.yaml) (parâmetros congelados) · [TAREFAS.md](TAREFAS.md) (estado real, com evidências) · [PROGRESS.md](PROGRESS.md) (memória externa)

@@ -133,6 +133,21 @@ sessions:
     londres_ny_uniao:      "uniao_contigua(londres, ny)"
   dia_de_negociacao: "abertura de Tóquio → fechamento de NY"  # unidade (moeda, dia)
   campos_por_linha: [sessao, minutos_desde_abertura_da_sessao, flag_dst]
+  # --------------------------------------------------------------------------
+  # Mapeamento sessão ↔ hora do SERVIDOR: calibrado EMPIRICAMENTE no E1
+  # (adendo 2026-07-15 do PLANO). As janelas acima (fuso local IANA) são a
+  # definição congelada; a conversão para hora do server MetaQuotes é um fato
+  # a medir, não um parâmetro. Fontes da calibração:
+  #   1. offset server↔GMT gravado pelo exportador no _manifest.csv;
+  #   2. assinatura de volatilidade/volume por hora (e01_inventario.py).
+  # Observação do usuário (2026-07-15, sem certeza — cross-check, não verdade):
+  #   Tóquio abre ~3h server (3º candle H1) — bate com a teoria UTC+3 verão;
+  #   Londres ~12h e NY ~18h server — NÃO batem com a teoria (~10h e ~15h no
+  #   verão) nem com os próprios candles citados (9º ≈ 8–9h, 18º ≈ 17–18h).
+  calibracao_server:
+    status: pendente_E1
+    teoria_verao_utc3: {toquio: "03:00", londres: "10:00", ny: "15:00"}
+    observacao_usuario: {toquio: "03:00", londres: "12:00", ny: "18:00"}
 
 # ----------------------------------------------------------------------------
 # Gabarito de eventos (ESBOÇO §1.1–1.2) — definição CANDIDATA.
