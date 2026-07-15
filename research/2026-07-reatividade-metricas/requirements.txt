@@ -1,0 +1,19 @@
+# Pesquisa 2026-07-reatividade-metricas — dependências Python
+# Instalar com: pip install -r requirements.txt (Python >= 3.11)
+
+# Núcleo do pipeline (E2–E5)
+numpy>=1.26
+pandas>=2.1
+pyarrow>=15.0          # Parquet (formato do banco — ESBOÇO Q10)
+pyyaml>=6.0            # leitura do config.yaml
+scipy>=1.11            # Spearman, bootstrap, testes
+statsmodels>=0.14      # AR(1)/half-life (E8), Benjamini-Hochberg (C11)
+matplotlib>=3.8        # figuras dos relatórios results/
+pytest>=8.0            # testes unitários do pipeline (E2)
+tqdm>=4.66
+
+# Adicionadas quando as etapas chegarem (mantidas comentadas até lá):
+# hmmlearn>=0.3        # E8 — validação HMM das fases
+# scikit-learn>=1.4    # E10 — logística regularizada, clustering, PCA, VIF
+# lightgbm>=4.3        # E10 — Gradient Boosting da escada de modelos
+# shap>=0.45           # E10 — importâncias SHAP

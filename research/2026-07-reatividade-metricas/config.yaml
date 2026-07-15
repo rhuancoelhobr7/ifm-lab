@@ -1,0 +1,230 @@
+# ============================================================================
+# config.yaml — Pesquisa "Reatividade das Métricas do IFM" (intraday)
+# ----------------------------------------------------------------------------
+# Fonte única de parâmetros: NENHUM script pode hard-codear valores daqui.
+# Congelado no fechamento do E0 (última chance de ajuste), EXCETO:
+#   - event.anchor_escolhida: congela no portão P2a (auditoria C2);
+#   - mt5.server_timezone / sufixo de símbolos: preenchidos no E1 (dependem
+#     do broker) — registrados como adendo, não mudam análise.
+# Todo estágio do pipeline grava seus outputs com o hash desta configuração
+# (ver pipeline.cache) — mudou o hash, recomputa; não mudou, reaproveita.
+# ============================================================================
+
+research:
+  slug: 2026-07-reatividade-metricas
+  titulo: "Reatividade das métricas do painel G8 (perfil intraday)"
+  premissas: [P1-convencao-do-dia, P2-puramente-intraday, P3-reatividade-nao-previsao]
+  documentos: [ESBOCO.md, PLANO.md]
+
+# ----------------------------------------------------------------------------
+# Indicador — parâmetros default extraídos de src/IFM.mq5 (v1.0).
+# A reimplementação Python (E2) usa EXATAMENTE estes valores; a paridade (E3)
+# é verificada contra eles.
+# ----------------------------------------------------------------------------
+indicator:
+  version_tag: v1.0
+  source: src/IFM.mq5
+  zcore: true                # InpZCore — núcleo IFM-Z (z-score contínuo)
+  light_window: 60           # LIGHT_WINDOW — barras da janela do IFM Light
+  met_ring: 64               # MET_RING — pontos de S mantidos por moeda/TF
+  vel_k: 6                   # InpMetVelK — k da VEL/ACEL
+  pers_n: 12                 # InpMetPersN — N de PERS/EFIC
+  zvel_sigma_n: 32           # InpZVelN — janela do sigma de dS (zvel)
+  zmov_days_n: 20            # InpZMovN — dias do z histórico do movATR (zMov/zHist)
+  cci_length: 20             # InpCCILength (núcleo clássico; referência)
+  atr_length: 14             # ATR14 usado no movATR e nos alvos
+  thresholds_atuais:         # a regra binária "candidata" = baseline a bater
+    zvel_abs: 2.0            # InpZThrVel
+    zs_abs: 1.0              # InpZThrS
+    vel_abs: 17.6            # InpMetThrVel (F3 p75, núcleo clássico)
+    pers: 0.58               # InpMetThrPers (F3 p75)
+    cesta_min: 5             # InpMetThrCesta — de 7 pares
+    mtf_min: 2               # InpMetThrMTF — de 4 TFs
+  candidata: "|zvel| >= 2.0 E |zS| >= 1.0 E cesta >= 5/7 E mtf >= 2/4 E sem VETO E lado definido"
+  veto: "moeda top-2 do ranking H1 com VEL contrária em H4 E D1"
+
+# ----------------------------------------------------------------------------
+# Universo: G8, 28 pares (nomes canônicos; sufixo do broker resolvido no E1)
+# ----------------------------------------------------------------------------
+currencies: [USD, EUR, GBP, JPY, CHF, CAD, AUD, NZD]   # ordem do indicador (g_cur)
+pairs:
+  - EURUSD
+  - EURGBP
+  - EURJPY
+  - EURCHF
+  - EURCAD
+  - EURAUD
+  - EURNZD
+  - GBPUSD
+  - GBPJPY
+  - GBPCHF
+  - GBPCAD
+  - GBPAUD
+  - GBPNZD
+  - AUDUSD
+  - AUDJPY
+  - AUDCHF
+  - AUDCAD
+  - AUDNZD
+  - NZDUSD
+  - NZDJPY
+  - NZDCHF
+  - NZDCAD
+  - USDJPY
+  - USDCHF
+  - USDCAD
+  - CADJPY
+  - CADCHF
+  - CHFJPY
+
+mt5:
+  server_timezone: null      # ⏳ preencher no E1 (depende do broker); ex.: "Etc/GMT-3"
+  symbol_suffix: ""          # ⏳ preencher no E1 se o broker usar sufixo (ex.: ".r")
+  spread_historico: false    # MT5 não fornece spread histórico em barras (limitação
+                             # documentada no esboço Q10) → custo por par vira
+                             # constante, tabela preenchida no E11.
+
+# ----------------------------------------------------------------------------
+# TFs e períodos (PLANO §3 — congelados; ajuste SOMENTE no E0)
+# ----------------------------------------------------------------------------
+timeframes:
+  contexto_vies:             # só a ÚLTIMA barra FECHADA entra como feature
+    tfs: [MN, W1]
+    periodo: {inicio: 2016-01-01, fim: 2026-06-30}
+  contexto_ponte:
+    tfs: [D1, H4]
+    periodo: {inicio: 2021-01-01, fim: 2026-06-30}
+  deteccao_longa:
+    tfs: [H1, M30]
+    periodo: {inicio: 2021-01-01, fim: 2026-06-30}
+  deteccao_fina:             # processados só APÓS o portão P2 (validar barato primeiro)
+    tfs: [M15, M5]
+    periodo: {inicio: 2024-07-01, fim: 2026-06-30}
+  painel_cobre: [M5, M15, M30, H1, H4, D1]   # TFs com paridade verificável (E3)
+  so_pesquisa: [W1, MN]                       # não existem no painel; sem paridade possível
+
+# ----------------------------------------------------------------------------
+# Divisão cronológica (comum a todos os TFs) — enforcement físico:
+# cada bloco vira Parquet separado; o de teste vive em data/sealed/ e os
+# scripts E5–E10 RECUSAM esse caminho por construção.
+# ----------------------------------------------------------------------------
+splits:
+  treino:    {inicio: null,       fim: 2024-12-31}   # null = início do período do TF
+  validacao: {inicio: 2025-01-01, fim: 2025-09-30}
+  teste_selado:
+    inicio: 2025-10-01
+    fim: 2026-06-30
+    caminho: data/sealed/
+    abertura_unica: E11        # aberto UMA vez; reabrir exige NOVO período selado
+
+# ----------------------------------------------------------------------------
+# Sessões (Premissa P2 — a sessão é a unidade de operação)
+# Janelas definidas no fuso IANA local de cada praça → o DST é resolvido pelo
+# próprio fuso, sem tabela manual. Horários = prática de mercado; candidatos
+# a ajuste fino APENAS no fechamento do E0.
+# ----------------------------------------------------------------------------
+sessions:
+  toquio:   {tz: Asia/Tokyo,       abre: "09:00", fecha: "18:00"}   # sem DST
+  londres:  {tz: Europe/London,    abre: "08:00", fecha: "17:00"}
+  ny:       {tz: America/New_York, abre: "08:00", fecha: "17:00"}
+  derivadas:                       # calculadas a partir das três acima
+    londres_ny_intersecao: "intersecao(londres, ny)"          # o miolo do dia
+    toquio_londres:        "uniao_contigua(toquio, londres)"  # combinação P2
+    londres_ny_uniao:      "uniao_contigua(londres, ny)"
+  dia_de_negociacao: "abertura de Tóquio → fechamento de NY"  # unidade (moeda, dia)
+  campos_por_linha: [sessao, minutos_desde_abertura_da_sessao, flag_dst]
+
+# ----------------------------------------------------------------------------
+# Gabarito de eventos (ESBOÇO §1.1–1.2) — definição CANDIDATA.
+# Números validados visualmente na auditoria C2; congelam no portão P2a.
+# ----------------------------------------------------------------------------
+event:
+  unidade: [moeda, dia_de_negociacao]
+  magnitude_min_atr: 1.0         # |retorno da cesta no dia| ≥ 1.0 ATR médio dos pares
+  unanimidade_min_pares: 6       # ≥ 6 dos 7 pares fecham o dia na mesma direção
+  eficiencia_min: 0.30           # razão de eficiência de Kaufman do caminho do dia
+  atributos: [direcao, magnitude_atrs, duracao, sessoes_cobertas, ancora_inicio,
+              fim, eficiencia, n_pares_alinhados]
+  ancoras_candidatas:
+    a_20_10:                     # "ponto sem retorno"
+      tf: M15
+      atinge_pct: 20             # movimento acumulado atinge 20% da magnitude final...
+      nunca_recua_abaixo_pct: 10 # ...e nunca mais recua abaixo de 10%
+    a_rompimento:
+      definicao: "último cruzamento do preço da cesta pelo nível de abertura do dia antes do trecho final do movimento"
+  ancora_escolhida: null         # 🚪 congela no P2a (auditoria C2)
+  plano_b:                       # PLANO §7, se C2 reprovar 3 rodadas
+    magnitude_min_atr: 1.5
+    unanimidade_min_pares: 7
+
+# ----------------------------------------------------------------------------
+# Alvos e horizontes (ESBOÇO §1.4 — versão intraday)
+# ----------------------------------------------------------------------------
+targets:
+  A1: "ΔS da força da moeda"
+  A2: "retorno da cesta da moeda, em ATRs"
+  A3: "par mais forte × mais fraco, em ATRs"
+horizons:
+  relogio_min: [30, 60, 120, 240]          # sempre reportados em candles do TF também
+  naturais: [fim_da_sessao_corrente, fim_do_dia]
+
+# ----------------------------------------------------------------------------
+# As quatro notas do detector (ESBOÇO §1.3) — parâmetros de cálculo
+# ----------------------------------------------------------------------------
+detector_notas:
+  tempo_util_pct_consumido: 50   # detecção "em tempo útil" = antes de 50% consumido
+  falso_alarme_normalizacao: "disparos fora de evento por (moeda × sessão)"
+  captura_unidades: [atrs, pct_da_magnitude]
+
+# ----------------------------------------------------------------------------
+# Regra de NaN e buracos (idêntica ao painel — propaga, nunca imputa)
+# ----------------------------------------------------------------------------
+nan:
+  politica: propagar             # dado faltante NUNCA vira neutro
+  buraco_max_barras: 3           # ≤ 3 barras: linha vira NaN; maior: janela excluída
+  reportar_taxa_descartada: true
+
+# ----------------------------------------------------------------------------
+# Estatística (guarda-corpo — ESBOÇO §1.5)
+# ----------------------------------------------------------------------------
+stats:
+  seed: 20260715
+  bootstrap: {bloco: dia, n: 2000, ic: 0.95}
+  fdr_benjamini_hochberg: 0.10   # C11: toda varredura com > 20 testes simultâneos
+  varredura_min_testes: 20
+  n_minimo_celula: 30            # células com N < 30 eventos: esmaecidas, nunca achado
+  limiares_zvel_varridos: [1.0, 1.5, 2.0, 2.5, 3.0]   # Q2 (análogos p/ demais métricas)
+
+# ----------------------------------------------------------------------------
+# Critérios congelados (PLANO §4) — parâmetros numéricos usados pelos scripts
+# ----------------------------------------------------------------------------
+criteria:
+  C1_paridade:
+    ds_abs_p99: 0.1              # |ΔS| ≤ 0.1 em ≥ 99% dos pontos
+    ds_abs_max: 0.5
+    derivadas_erro_rel: 0.01
+    nan_identicos: true
+  C2_gabarito: {dias_sorteados: 20, aprovacao_min_pct: 80, max_rodadas: 3}
+  C3_banco: {nan_max_pct_tf_ano: 15, linhas_auditadas: 20}
+  C4_reativa: {deteccao_min_pct: 60, captura_mediana_min_pct: 40, precisao_min_pct: 40}
+  C5_morta: {deteccao_max_pct: 30, captura_mediana_max_pct: 15}
+  C6_exaustao: {captura_mediana_max_pct: 10, ic95_abaixo_de_pct: 20}
+  C7_conflito_relevante: {efeito_relativo_min_pct: 30}
+  C8_redundancia: {spearman_abs_min: 0.90, tfs_consistentes_min: 4}
+  C9_ganho_incremental: {melhora_relativa_min_pct: 10, piora_max_outras_pct: 5}
+  C10_score_aprovado: {latencia_reducao_min_pct: 20, falsos_reducao_min_pct: 20}
+  C11_fdr: 0.10
+
+# ----------------------------------------------------------------------------
+# Pipeline em estágios com cache por hash de configuração (PLANO §2)
+# ----------------------------------------------------------------------------
+pipeline:
+  estagios: [raw_csv, metricas_parquet, banco_mae_gabarito, analises]
+  cache:
+    dir: data/cache/
+    chave: "sha256 do config.yaml (bloco relevante) + versão do script"
+  dados:
+    raw: data/raw/               # CSVs do MT5 (gitignorados)
+    parquet: data/parquet/       # métricas por TF (gitignorados)
+    sealed: data/sealed/         # teste selado — SÓ o E11 lê
+  formato: parquet               # não CSV, pelo volume (ESBOÇO Q10)

@@ -6,7 +6,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 
 - **Versão principal:** v1.0 (`src/IFM.mq5`, ~2033 linhas).
 - **Documentação:** `docs/IFM_GUIA.md` cobre 100% da arquitetura da v1.0; `docs/LEITURA.md` (playbook de interpretação) ainda sem entradas.
-- **Pesquisas:** nenhuma iniciada ainda.
+- **Pesquisas:** `research/2026-07-reatividade-metricas/` em andamento (E0 — setup; reatividade das métricas do painel G8, perfil intraday). Governança da pesquisa: PLANO.md + TAREFAS.md + PROGRESS.md na pasta da pesquisa; validador `scripts/check_tarefas.py` roda antes de todo commit da pesquisa.
 - **Variantes:** nenhuma ainda.
 
 ## Regras invioláveis

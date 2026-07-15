@@ -26,4 +26,4 @@ Regras:
 
 | Pesquisa | Pergunta | Status | Conclusão |
 |---|---|---|---|
-| _(nenhuma ainda)_ | | | |
+| [2026-07-reatividade-metricas](2026-07-reatividade-metricas/) | Quais métricas/TFs/combinações do painel G8 detectam mais rápido as tendências intraday reais — e quanto movimento resta quando o sinal acende? | Em andamento (E0 — setup) | — |
