@@ -35,14 +35,14 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Banco de estados gerado (métricas t0 + contexto MN1→M30 última barra fechada + sessões + alvos intraday A1–A3; M30 e H1) (scripts/e04b_banco.py, results/E04b_auditoria.md)
 - [x] Splits físicos: treino / validação / data/sealed/ (scripts/e04b_banco.py, results/E04b_auditoria.md)
 - [x] Relatório de sanidade results/E04b_auditoria.md (results/E04b_auditoria.md, results/E04b_20linhas.csv)
-- [ ] 🚪 P2b: 👤 banco APROVADO (C3, 20 linhas auditadas)
-- [ ] Extensão M5/M15 processada (pós-P2, com relatório de sanidade)
+- [x] 🚪 P2b: 👤 banco APROVADO (C3, 20 linhas auditadas por Carlos Eduardo) (PROGRESS.md, results/E04b_auditoria.md)
+- [x] Extensão M5/M15 processada (pós-P2, com relatório de sanidade) (results/E04b_auditoria.md, scripts/e04b_banco.py)
 
 ## BLOCO B — O mapa
 ### E5 — Q1: corrida de latências · PORTÃO P3
-- [ ] Quatro notas por métrica × TF de detecção × sessão (bootstrap por dia)
-- [ ] Ranking de agilidade + tabela-liga com leituras (results/E05_corrida.md)
-- [ ] Classificação preliminar C4 (reativa) / C5 (morta)
+- [x] Quatro notas por métrica × TF de detecção × sessão (bootstrap por dia) (scripts/e05_corrida.py, results/E05_liga.csv)
+- [x] Ranking de agilidade + tabela-liga com leituras (results/E05_corrida.md) (results/E05_corrida.md)
+- [x] Classificação preliminar C4 (reativa) / C5 (morta) (results/E05_corrida.md)
 - [ ] 🚪 P3: 👤 ordem dos ramos do Bloco C decidida (registrada no PROGRESS.md)
 
 ## BLOCO C — Ramos (ordem definida no P3)

@@ -32,15 +32,19 @@ NaN estrutural, não dado faltante).
 | H1 | 2023 | 2.8 |
 | H1 | 2024 | 1.8 |
 | H1 | 2025 | 3.4 |
+| M15 | 2024 | 1.7 |
+| M15 | 2025 | 5.9 |
+| M5 | 2024 | 1.4 |
+| M5 | 2025 | 6.2 |
 
-**Leitura:** pior taxa de NaN por TF×ano nas colunas-chave: 6.0% —
+**Leitura:** pior taxa de NaN por TF×ano nas colunas-chave: 6.2% —
 dentro do limite C3 (≤ 15%). NaN aqui é honestidade
 (janelas de aquecimento, buracos propagados), nunca imputação.
 
 | verificação | resultado |
 |---|---|
 | 20 linhas sorteadas para auditoria 👤 | results/E04b_20linhas.csv |
-| A2_60 recomputado por caminho independente (dos CSVs crus) | 20/20 batem (tol. 1e-9) |
+| A2_60 recomputado por caminho independente (dos CSVs crus) | 40/40 batem (tol. 1e-9) |
 | contexto ctx_s_* usa barra fechada ≤ t | por construção (asof; teste test_asof_nao_olha_o_futuro) |
 
 **Leitura:** o alvo A2 refeito fora do pipeline bate com o gravado, e o
@@ -49,8 +53,8 @@ errado e look-ahead) estão vigiadas por código e teste.
 
 ## Confronto com os critérios
 
-C3 exigia: NaN ≤ 15% por TF×ano → ✔ (pior 6.0%); alvos recomputados
-por caminho independente batem → ✔ (20/20); contexto W1/MN por
+C3 exigia: NaN ≤ 15% por TF×ano → ✔ (pior 6.2%); alvos recomputados
+por caminho independente batem → ✔ (40/40); contexto W1/MN por
 última barra FECHADA → ✔; 20 linhas auditadas pelo dono da pesquisa → ⏳ 👤.
 **Situação: aguardando a auditoria 👤 das 20 linhas (portão P2b).**
 

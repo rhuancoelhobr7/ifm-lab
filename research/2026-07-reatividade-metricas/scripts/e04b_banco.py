@@ -27,6 +27,7 @@ Saídas: data/parquet/E04_banco_{TF}_{treino,validacao}_{hash}.parquet,
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -67,6 +68,9 @@ def frame_metrica(wide: pd.DataFrame, met: str, moedas: list[str]) -> pd.DataFra
 
 
 def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--tfs", nargs="*", default=TFS_BANCO)
+    args = ap.parse_args()
     cfg = e02.carrega_config()
     e02.checar_proveniencia(cfg)
     h = e02.hash_config(cfg)
@@ -98,12 +102,19 @@ def main() -> int:
     ctx_s = {tf: frame_metrica(carregar_parquet(f"E02_{tf}", h), "s", moedas)
              for tf in TFS_CTX}
 
+    wide_h1 = carregar_parquet("E02_H1", h)          # fallback de rank p/ M5/M15
     resumo_nan, amostras = [], []
-    for tf in TFS_BANCO:
+    for tf in args.tfs:
         print(f"Banco {tf}…")
         wide = carregar_parquet(f"E02_{tf}", h)
         t_idx = wide.index
-        blocos = {f"met_{m}": frame_metrica(wide, m, moedas) for m in METS_T0}
+        # M5/M15 não têm mtf/veto/candidata/rank próprios (colunas multi-TF só
+        # existem em M30–D1); rank vem do H1 por asof (é propriedade do H1)
+        presentes = [m for m in METS_T0 if f"{m}_{moedas[0]}" in wide.columns]
+        blocos = {f"met_{m}": frame_metrica(wide, m, moedas) for m in presentes}
+        if "rank_h1" not in presentes:
+            blocos["met_rank_h1"] = cross_tf.asof_ultima_fechada(
+                frame_metrica(wide_h1, "rank_h1", moedas), t_idx)
         for ctf in TFS_CTX:
             blocos[f"ctx_s_{ctf}"] = cross_tf.asof_ultima_fechada(ctx_s[ctf], t_idx)
         blocos["met_zmov"] = cross_tf.asof_ultima_fechada(
@@ -176,6 +187,11 @@ def main() -> int:
             for k, v in blocos.items():
                 df[k] = v[c].to_numpy()
             df["sessao"], df["minutos_sessao"], df["flag_dst"] = sess, minutos, dst
+            # valor do caminho de cesta em t (p/ % consumido no E5)
+            cp = np.full(len(t_idx), np.nan)
+            m_ok = ok_dia & (slot >= 0)
+            cp[m_ok] = path_ff[c][li[m_ok], np.clip(slot[m_ok], 0, SLOTS - 1)]
+            df["cesta_path"] = cp
             for hmin in HORIZONTES_MIN:
                 df[f"a1_{hmin}"] = a1_h[hmin][c].to_numpy()
                 df[f"a2_{hmin}"] = a2_por(cur_arr, slot_h[hmin])
