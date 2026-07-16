@@ -23,15 +23,16 @@
 //|  semantica do replay do indicador).                              |
 //+------------------------------------------------------------------+
 #property copyright   "ifm-lab"
-#property version     "1.00"
+#property version     "1.10"  // v1.10: InpAnchorBase — ancora as janelas ANTES do fim dos dados da pesquisa
 #property description "Golden do IFM v1.0 para a paridade E3 (codigo copiado literalmente do indicador)"
 #property script_show_inputs
 
 //--- escopo do export
 input string   InpTFs          = "M30,H1,H4,D1";   // TFs do golden (grade do painel)
-input int      InpAnchors      = 80;               // ancoras por TF (shifts 1..N)
+input int      InpAnchors      = 80;               // ancoras por TF (a partir da base)
+input datetime InpAnchorBase   = D'2025.09.30 23:59'; // Base: ancoras contam PARA TRAS daqui (fim da VALIDACAO — paridade nunca toca o teste selado)
 input int      InpCrossSamples = 12;               // amostras de tempo da cadeia cruzada
-input int      InpCrossStepH1  = 24;               // passo entre amostras (barras H1)
+input int      InpCrossStepH1  = 24;               // passo entre amostras (barras H1, para tras da base)
 input string   InpFolder       = "IFM_golden";     // subpasta em MQL5\Files
 
 //--- parametros do indicador (DEFAULTS DA v1.0 — logados no golden_meta.csv)
@@ -296,9 +297,10 @@ int AnchorAt(const string sym, const ENUM_TIMEFRAMES tf, const datetime t)
 
 //+------------------------------------------------------------------+
 //| Constroi o ring de S/cesta de UM TF (estrutura do MetRebuild).   |
-//| anchorMode: -1 = ancora por tempo tAnchor; >=1 = shift fixo.     |
+//| Ancora por TEMPO (tAnchor) + sExtra barras extras para tras —    |
+//| sExtra=0 reproduz o replay; sExtra=s-1 gera a serie de ancoras.  |
 //+------------------------------------------------------------------+
-void BuildRings(const int xt, const int shiftFixo, const datetime tAnchor)
+void BuildRings(const int xt, const int sExtra, const datetime tAnchor)
 {
    ENUM_TIMEFRAMES tf = g_xTFs[xt];
    double acc[8][MET_RING];
@@ -309,7 +311,7 @@ void BuildRings(const int xt, const int shiftFixo, const datetime tAnchor)
 
    for(int p = 0; p < g_pairsN && p < MET_MAXP; p++)
    {
-      int anchor = (shiftFixo >= 1) ? shiftFixo : AnchorAt(g_pair[p], tf, tAnchor);
+      int anchor = AnchorAt(g_pair[p], tf, tAnchor) + sExtra;
       MqlRates rates[];
       ArraySetAsSeries(rates, true);
       int copied = CopyRates(g_pair[p], tf, anchor, LIGHT_WINDOW + MET_RING - 1, rates);
@@ -492,6 +494,7 @@ void OnStart()
    FileWrite(hm, StringFormat("zmov_days_n,%d", InpZMovN));
    FileWrite(hm, StringFormat("pares,%d", g_pairsN));
    FileWrite(hm, StringFormat("ancoras,%d", InpAnchors));
+   FileWrite(hm, "ancora_base," + TimeToString(InpAnchorBase, TIME_DATE|TIME_MINUTES));
    FileWrite(hm, StringFormat("cross_samples,%d passo %d barras H1", InpCrossSamples, InpCrossStepH1));
    FileClose(hm);
 
@@ -512,11 +515,12 @@ void OnStart()
       for(int i = 0; i < XTFN; i++) if(g_xName[i] == tfNames[t]) xt = i;
       if(xt < 0) { Print("ExportGoldenIFM: TF fora da grade cross (", tfNames[t], ") — pulado."); continue; }
 
+      int baseShift0 = AnchorAt(g_pair[0], g_xTFs[xt], InpAnchorBase);
       for(int s = 1; s <= InpAnchors && !IsStopped(); s++)
       {
          Comment(StringFormat("ExportGoldenIFM: %s ancora %d/%d", tfNames[t], s, InpAnchors));
-         BuildRings(xt, s, 0);
-         string bt = TimeToString(iTime(g_pair[0], g_xTFs[xt], s), TIME_DATE|TIME_MINUTES);
+         BuildRings(xt, s - 1, InpAnchorBase);
+         string bt = TimeToString(iTime(g_pair[0], g_xTFs[xt], baseShift0 + s - 1), TIME_DATE|TIME_MINUTES);
 
          // z transversal (copia do RenderMetrics)
          double xsMean = 50.0, xsSd = 0.0;
@@ -556,9 +560,10 @@ void OnStart()
    if(hx == INVALID_HANDLE) { Alert("ExportGoldenIFM: erro criando golden_cross.csv"); return; }
    FileWrite(hx, "sample_time,currency,S_M30,S_H1,S_H4,S_D1,zS_H1,mtf,veto,rank_h1,zmov,zhist,candidata_h1");
 
+   int baseShiftH1 = AnchorAt(g_pair[0], PERIOD_H1, InpAnchorBase);
    for(int k = 0; k < InpCrossSamples && !IsStopped(); k++)
    {
-      datetime tA = iTime(g_pair[0], PERIOD_H1, 1 + k * InpCrossStepH1);
+      datetime tA = iTime(g_pair[0], PERIOD_H1, baseShiftH1 + k * InpCrossStepH1);
       Comment(StringFormat("ExportGoldenIFM: cross %d/%d (%s)", k+1, InpCrossSamples,
                            TimeToString(tA, TIME_DATE|TIME_MINUTES)));
       for(int xt = 0; xt < XTFN; xt++) BuildRings(xt, 0, tA);
