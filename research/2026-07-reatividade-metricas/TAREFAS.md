@@ -17,7 +17,7 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Script MQL5 tools/export_bars/ escrito e documentado (8 TFs: M5…MN) (tools/export_bars/ExportBarsG8.mq5, tools/export_bars/README.md)
 - [x] Script de inventário pronto para rodar sobre os CSVs (scripts/e01_inventario.py)
 - [x] 👤 Export rodado no MT5, CSVs em data/raw/ (data/raw/_manifest.csv)
-- [!] Inventário de cobertura sem buracos críticos (bloqueada: M30/H1 do export legado começam em 2022-01-03 e o config exige 2021-01-01 — reexportar 👤; relatório pronto em results/E01_inventario.md; sessões já calibradas e congeladas no config.yaml)
+- [!] Inventário de cobertura sem buracos críticos (bloqueada: reexport de 2026-07-15 veio de OUTRO servidor — Upcomers, histórico só desde 2026-01-12, sem EURUSD/GBPUSD/USDJPY — decisão de fonte de dados 👤 no PROGRESS.md; export MetaQuotes-Demo recuperável do commit b7f19a8; relatório do export original em results/E01_inventario.md)
 ### E2 — Pipeline Python
 - [ ] Cadeia IFM Light → S → derivadas implementada (config.yaml, sem hard-code, incl. W1/MN)
 - [ ] Testes unitários com fixtures sintéticas verdes (pytest)
