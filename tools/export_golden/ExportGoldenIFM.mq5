@@ -23,15 +23,16 @@
 //|  semantica do replay do indicador).                              |
 //+------------------------------------------------------------------+
 #property copyright   "ifm-lab"
-#property version     "1.00"
+#property version     "2.00"  // v2.00: ancora por TEMPO em tudo + ultima barra FECHADA (corrige dessinc de buracos e look-ahead de TF alto)
 #property description "Golden do IFM v1.0 para a paridade E3 (codigo copiado literalmente do indicador)"
 #property script_show_inputs
 
 //--- escopo do export
 input string   InpTFs          = "M30,H1,H4,D1";   // TFs do golden (grade do painel)
-input int      InpAnchors      = 80;               // ancoras por TF (shifts 1..N)
+input int      InpAnchors      = 80;               // ancoras por TF (a partir da base)
+input datetime InpAnchorBase   = D'2025.09.26 23:59'; // Base: janela LIMPA mais recente antes do selado (26/09 evita o buraco do GBPNZD de 29/09-01/10 — ver E01_janelas_excluidas.csv)
 input int      InpCrossSamples = 12;               // amostras de tempo da cadeia cruzada
-input int      InpCrossStepH1  = 24;               // passo entre amostras (barras H1)
+input int      InpCrossStepH1  = 24;               // passo entre amostras (barras H1, para tras da base)
 input string   InpFolder       = "IFM_golden";     // subpasta em MQL5\Files
 
 //--- parametros do indicador (DEFAULTS DA v1.0 — logados no golden_meta.csv)
@@ -286,19 +287,28 @@ bool DetectG8()
 }
 
 //+------------------------------------------------------------------+
-//| Ancora por TEMPO (semantica do replay do indicador)              |
+//| Ancora por TEMPO: ultima barra FECHADA ate t (close <= t).       |
+//| ⚠ NAO e copia do MetAnchorShift do replay: aquele ancora na      |
+//| barra que CONTEM t — nos TFs altos isso usa a barra em formacao  |
+//| com os valores finais (look-ahead do modo replay, registrado no  |
+//| PROGRESS 2026-07-16). O painel AO VIVO usa a ultima fechada      |
+//| (shift 1) — e e o vivo que a paridade valida.                    |
 //+------------------------------------------------------------------+
 int AnchorAt(const string sym, const ENUM_TIMEFRAMES tf, const datetime t)
 {
-   int bars = Bars(sym, tf, t, TimeCurrent());
-   return MathMax(1, bars);
+   int sh = MathMax(1, Bars(sym, tf, t, TimeCurrent()));
+   datetime bo = iTime(sym, tf, sh);
+   if(bo > 0 && (long)bo + PeriodSeconds(tf) > (long)t)
+      sh++;   // barra ainda formando em t -> recua para a ultima FECHADA
+   return sh;
 }
 
 //+------------------------------------------------------------------+
 //| Constroi o ring de S/cesta de UM TF (estrutura do MetRebuild).   |
-//| anchorMode: -1 = ancora por tempo tAnchor; >=1 = shift fixo.     |
+//| Ancora por TEMPO: cada par usa a propria ultima barra FECHADA    |
+//| ate tAnchor — exatamente o painel ao vivo naquele instante.      |
 //+------------------------------------------------------------------+
-void BuildRings(const int xt, const int shiftFixo, const datetime tAnchor)
+void BuildRings(const int xt, const datetime tAnchor)
 {
    ENUM_TIMEFRAMES tf = g_xTFs[xt];
    double acc[8][MET_RING];
@@ -309,7 +319,7 @@ void BuildRings(const int xt, const int shiftFixo, const datetime tAnchor)
 
    for(int p = 0; p < g_pairsN && p < MET_MAXP; p++)
    {
-      int anchor = (shiftFixo >= 1) ? shiftFixo : AnchorAt(g_pair[p], tf, tAnchor);
+      int anchor = AnchorAt(g_pair[p], tf, tAnchor);
       MqlRates rates[];
       ArraySetAsSeries(rates, true);
       int copied = CopyRates(g_pair[p], tf, anchor, LIGHT_WINDOW + MET_RING - 1, rates);
@@ -477,7 +487,7 @@ void OnStart()
    int hm = FileOpen(InpFolder + "\\golden_meta.csv", FILE_WRITE|FILE_TXT|FILE_ANSI);
    if(hm == INVALID_HANDLE) { Alert("ExportGoldenIFM: erro criando golden_meta.csv"); return; }
    FileWrite(hm, "chave,valor");
-   FileWrite(hm, "ferramenta,ExportGoldenIFM v1.00 (copia literal de src/IFM.mq5 v1.0)");
+   FileWrite(hm, "ferramenta,ExportGoldenIFM v2.00 (copia literal de src/IFM.mq5 v1.0; ancora=ultima fechada por tempo)");
    FileWrite(hm, "gerado_em_local," + TimeToString(TimeLocal(), TIME_DATE|TIME_SECONDS));
    FileWrite(hm, "server_time," + TimeToString(TimeTradeServer(), TIME_DATE|TIME_SECONDS));
    FileWrite(hm, StringFormat("offset_server_gmt_h,%.1f",
@@ -492,6 +502,7 @@ void OnStart()
    FileWrite(hm, StringFormat("zmov_days_n,%d", InpZMovN));
    FileWrite(hm, StringFormat("pares,%d", g_pairsN));
    FileWrite(hm, StringFormat("ancoras,%d", InpAnchors));
+   FileWrite(hm, "ancora_base," + TimeToString(InpAnchorBase, TIME_DATE|TIME_MINUTES));
    FileWrite(hm, StringFormat("cross_samples,%d passo %d barras H1", InpCrossSamples, InpCrossStepH1));
    FileClose(hm);
 
@@ -512,11 +523,15 @@ void OnStart()
       for(int i = 0; i < XTFN; i++) if(g_xName[i] == tfNames[t]) xt = i;
       if(xt < 0) { Print("ExportGoldenIFM: TF fora da grade cross (", tfNames[t], ") — pulado."); continue; }
 
+      int baseShift0 = AnchorAt(g_pair[0], g_xTFs[xt], InpAnchorBase);
       for(int s = 1; s <= InpAnchors && !IsStopped(); s++)
       {
          Comment(StringFormat("ExportGoldenIFM: %s ancora %d/%d", tfNames[t], s, InpAnchors));
-         BuildRings(xt, s, 0);
-         string bt = TimeToString(iTime(g_pair[0], g_xTFs[xt], s), TIME_DATE|TIME_MINUTES);
+         // ancora s = instante do CLOSE da s-esima barra fechada antes da base
+         datetime barOpen = iTime(g_pair[0], g_xTFs[xt], baseShift0 + s - 1);
+         datetime tS = (datetime)((long)barOpen + PeriodSeconds(g_xTFs[xt]));
+         BuildRings(xt, tS);
+         string bt = TimeToString(barOpen, TIME_DATE|TIME_MINUTES);
 
          // z transversal (copia do RenderMetrics)
          double xsMean = 50.0, xsSd = 0.0;
@@ -556,12 +571,15 @@ void OnStart()
    if(hx == INVALID_HANDLE) { Alert("ExportGoldenIFM: erro criando golden_cross.csv"); return; }
    FileWrite(hx, "sample_time,currency,S_M30,S_H1,S_H4,S_D1,zS_H1,mtf,veto,rank_h1,zmov,zhist,candidata_h1");
 
+   int baseShiftH1 = AnchorAt(g_pair[0], PERIOD_H1, InpAnchorBase);
    for(int k = 0; k < InpCrossSamples && !IsStopped(); k++)
    {
-      datetime tA = iTime(g_pair[0], PERIOD_H1, 1 + k * InpCrossStepH1);
+      // amostra = instante do CLOSE da barra H1 sorteada
+      datetime tA = (datetime)((long)iTime(g_pair[0], PERIOD_H1, baseShiftH1 + k * InpCrossStepH1)
+                               + PeriodSeconds(PERIOD_H1));
       Comment(StringFormat("ExportGoldenIFM: cross %d/%d (%s)", k+1, InpCrossSamples,
                            TimeToString(tA, TIME_DATE|TIME_MINUTES)));
-      for(int xt = 0; xt < XTFN; xt++) BuildRings(xt, 0, tA);
+      for(int xt = 0; xt < XTFN; xt++) BuildRings(xt, tA);
       BuildZMov(tA);
       int rankH1[8];
       RankH1(rankH1);

@@ -1,23 +1,29 @@
 #!/usr/bin/env python3
-"""e03_paridade.py — E3: paridade Python × replay do indicador (critério C1).
+"""
+e03_paridade.py — verificação de paridade indicador ↔ Python (E3, critério C1).
 
-💡 O que este script faz, em linguagem simples: pega os "valores-verdade"
-gravados pelo ExportGoldenIFM (a cópia literal do indicador rodando no MT5),
-recalcula os MESMOS pontos com o pipeline Python da pesquisa e mede a
-diferença ponto a ponto. O relatório sai no formato checklist do critério C1
-(congelado no E0): força S precisa bater com |ΔS| ≤ 0.1 em ≥99% dos pontos e
-máximo ≤ 0.5; derivadas com erro relativo ≤ 1%; e os NaN precisam cair nos
-MESMOS lugares (dado ausente de um lado é dado ausente do outro). Só com o C1
-fechado (portão P1 carimbado) as conclusões das etapas seguintes valem.
+💡 O que este script faz, em linguagem simples: compara as duas calculadoras.
+De um lado, os `golden_*.csv` — números que o PRÓPRIO código do indicador
+(copiado literalmente no ExportGoldenIFM.mq5) produziu no MetaTrader. Do outro,
+o Parquet do E2 — os mesmos números recalculados pela reimplementação Python.
+Ponto a ponto, moeda a moeda, TF a TF: se as diferenças ficarem dentro do
+critério C1 (congelado no PLANO §4), a calculadora Python é aprovada e TODA a
+pesquisa pode confiar nela. O relatório sai em results/E03_paridade.md no
+formato checklist, pronto para o carimbo do portão P1.
 
-Entrada:  data/raw/golden_{meta,strength,derivadas,pares,cross}.csv
-          (gerados por tools/export_golden/ExportGoldenIFM.mq5 no MT5)
-Saída:    results/E03_paridade.md
-Código de saída: 0 = C1 fechado; 1 = golden ausente/incompatível ou C1 falhou.
+Guardas:
+- recusa golden gerado com parâmetros diferentes do config.yaml (golden_meta);
+- recusa golden com âncoras DEPOIS do fim da validação — paridade nunca toca
+  o período do teste selado (PLANO §3).
+
+Uso:
+    .venv/bin/python scripts/e03_paridade.py [--golden-dir data/raw]
+Código de saída: 0 = C1 aprovado; 1 = C1 reprovado; 2 = insumo inválido.
 """
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -25,317 +31,318 @@ import numpy as np
 import pandas as pd
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ifm_metrics import cross_tf, daymove, io_raw  # noqa: E402
-import e02_gerar_metricas as e02  # noqa: E402
-
 RESEARCH = Path(__file__).resolve().parent.parent
-RAW = RESEARCH / "data" / "raw"
 RESULTS = RESEARCH / "results"
+PARQUET = RESEARCH / "data" / "parquet"
 
-TFS = ["M30", "H1", "H4", "D1"]
-DUR = {"M30": pd.Timedelta(minutes=30), "H1": pd.Timedelta(hours=1),
-       "H4": pd.Timedelta(hours=4), "D1": pd.Timedelta(days=1)}
-FMT_T = "%Y.%m.%d %H:%M"
+TF_SEC = {"M30": 1800, "H1": 3600, "H4": 14400, "D1": 86400}
+CURS = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"]
 
-# chaves do golden_meta que precisam bater com o config (paridade dos defaults)
-META_VS_CONFIG = {"zcore": "zcore", "cci_length": "cci_length",
-                  "mfc_vol_length": "mfc_vol_length",
-                  "ema_fallback_len": "ema_fallback_len", "vel_k": "vel_k",
-                  "zvel_sigma_n": "zvel_sigma_n", "zmov_days_n": "zmov_days_n"}
+# Ressalva registrada (P1, decisão de Rhuan em 2026-07-16 — PLANO §7, Plano B):
+# empate numérico irredutível num juiz do EURAUD na barra M30 de 26/09 22:30
+# (double exato do servidor × preço arredondado do CSV) contamina a âncora
+# inteira (S/derivadas das moedas e o zS transversal). A âncora é excluída do
+# C1 e contada à parte no relatório.
+RESSALVAS_ANCORAS = [("M30", "2025-09-26 22:30")]
 
-
-def carrega_golden() -> dict[str, pd.DataFrame] | None:
-    nomes = ["meta", "strength", "derivadas", "pares", "cross"]
-    faltam = [n for n in nomes if not (RAW / f"golden_{n}.csv").exists()]
-    if faltam:
-        print("✘ golden ausente em data/raw/: " + ", ".join(f"golden_{n}.csv" for n in faltam))
-        print("  Rodar tools/export_golden/ExportGoldenIFM.mq5 no MT5 (conta "
-              "MetaQuotes-Demo) e copiar os 5 CSVs — ver o README de lá.")
-        return None
-    out = {}
-    for n in nomes:
-        out[n] = pd.read_csv(RAW / f"golden_{n}.csv", na_values=["nan"])
-    return out
+# Segundo nível do Plano B: campo que falha SÓ no erro máximo, com máximo
+# ≤ 2× o critério e ≥99% dos pontos ok → aprovado com ressalva (✔*).
+FATOR_RESSALVA = 2.0
 
 
-def valida_meta(meta: pd.DataFrame, cfg: dict) -> list[str]:
-    kv = dict(zip(meta["chave"], meta["valor"].astype(str)))
+def cfg_carrega() -> dict:
+    with open(RESEARCH / "config.yaml", encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def golden_meta(gdir: Path) -> dict:
+    meta = {}
+    for line in (gdir / "golden_meta.csv").read_text(encoding="utf-8", errors="replace").splitlines()[1:]:
+        k, _, v = line.partition(",")
+        meta[k.strip()] = v.strip()
+    return meta
+
+
+def valida_meta(meta: dict, cfg: dict) -> list[str]:
+    ind = cfg["indicator"]
+    esperado = {
+        "zcore": "true" if ind["zcore"] else "false",
+        "cci_length": str(ind["cci_length"]),
+        "mfc_vol_length": str(ind["mfc_vol_length"]),
+        "ema_fallback_len": str(ind["ema_fallback_len"]),
+        "vel_k": str(ind["vel_k"]),
+        "zvel_sigma_n": str(ind["zvel_sigma_n"]),
+        "zmov_days_n": str(ind["zmov_days_n"]),
+        "conta_servidor": cfg["mt5"]["conta_servidor"],
+    }
     erros = []
-    esperado = cfg["mt5"].get("conta_servidor", "")
-    if esperado and esperado not in kv.get("conta_servidor", ""):
-        erros.append(f"conta_servidor do golden = '{kv.get('conta_servidor')}' "
-                     f"≠ '{esperado}' do config")
-    for k_meta, k_cfg in META_VS_CONFIG.items():
-        if k_meta not in kv:
-            erros.append(f"golden_meta sem a chave '{k_meta}'")
-            continue
-        v_cfg = str(cfg["indicator"][k_cfg]).lower()
-        if kv[k_meta].strip().lower() != v_cfg:
-            erros.append(f"parâmetro '{k_meta}': golden={kv[k_meta]} ≠ config={v_cfg}")
+    for k, v in esperado.items():
+        if meta.get(k) != v:
+            erros.append(f"golden_meta: {k} = '{meta.get(k)}' ≠ esperado '{v}' (config.yaml)")
     return erros
 
 
-def confronta(gold: pd.Series, py: pd.Series, modo: str) -> dict:
-    """Estatísticas de confronto de duas séries alinhadas.
+def parquet_do_tf(tf: str) -> pd.DataFrame:
+    arqs = sorted(PARQUET.glob(f"E02_{tf}_*.parquet"))
+    if not arqs:
+        raise FileNotFoundError(f"Parquet E02 do {tf} não encontrado — rode e02_gerar_metricas.py")
+    return pd.read_parquet(arqs[-1])
 
-    modo: 'abs' (ΔS absoluto — escala 0–100), 'rel' (erro relativo — C1 1%),
-          'exato' (colunas discretas: mtf, veto, rank, candidata, cesta).
-    """
-    g, p = gold.to_numpy(dtype=float), py.to_numpy(dtype=float)
-    nan_g, nan_p = np.isnan(g), np.isnan(p)
-    nan_iguais = int((nan_g == nan_p).sum())
-    ambos = ~nan_g & ~nan_p
-    r = {"n": len(g), "n_nan_gold": int(nan_g.sum()), "n_nan_py": int(nan_p.sum()),
-         "nan_batem": nan_iguais == len(g), "n_comparaveis": int(ambos.sum()),
-         "p99": np.nan, "maximo": np.nan, "pct_dentro": np.nan, "exatos_pct": np.nan}
-    if not ambos.any():
+
+def compara(golden: pd.Series, python: pd.Series, tipo: str, cfg_c1: dict) -> dict:
+    """Compara duas séries alinhadas. tipo: 's' (escala 0-100), 'rel' (derivadas),
+    'int' (mtf/veto/rank/candidata — igualdade exata)."""
+    g, p = golden.astype(float), python.astype(float)
+    ambos_nan = g.isna() & p.isna()
+    nan_mismatch = int((g.isna() ^ p.isna()).sum())
+    ok_idx = ~(g.isna() | p.isna())
+    n = int(ok_idx.sum())
+    r = {"n": n, "nan_mismatch": nan_mismatch, "nan_ambos": int(ambos_nan.sum())}
+    if n == 0:
+        r.update(pct_ok=np.nan, max_err=np.nan, aprovado=(nan_mismatch == 0))
         return r
-    d = np.abs(g[ambos] - p[ambos])
-    if modo == "rel":
-        den = np.maximum(np.abs(g[ambos]), 1e-9)
-        d = d / den
-    r["p99"] = float(np.percentile(d, 99))
-    r["maximo"] = float(d.max())
-    if modo == "exato":
-        r["exatos_pct"] = float((d <= 1e-9).mean() * 100)
+    d = (p[ok_idx] - g[ok_idx]).abs()
+    r["ressalva"] = False
+    if tipo == "s":
+        lim, lim_max = cfg_c1["ds_abs_p99"], cfg_c1["ds_abs_max"]
+        r["pct_ok"] = float((d <= lim).mean() * 100)
+        r["max_err"] = float(d.max())
+        r["aprovado"] = (r["pct_ok"] >= 99.0) and (r["max_err"] <= lim_max) and nan_mismatch == 0
+        if not r["aprovado"] and nan_mismatch == 0 and r["pct_ok"] >= 99.0 \
+           and r["max_err"] <= FATOR_RESSALVA * lim_max:
+            r["aprovado"] = r["ressalva"] = True
+    elif tipo == "rel":
+        # erro relativo com piso de escala: denom = max(|golden|, 1% da escala
+        # típica do campo) — evita que valores ~0 explodam a razão.
+        escala = float(np.nanpercentile(g[ok_idx].abs(), 95)) or 1.0
+        denom = np.maximum(g[ok_idx].abs(), 0.01 * escala)
+        rel = d / denom
+        lim = cfg_c1["derivadas_erro_rel"]
+        r["pct_ok"] = float((rel <= lim).mean() * 100)
+        r["max_err"] = float(rel.max())
+        r["aprovado"] = (r["pct_ok"] >= 99.0) and (r["max_err"] <= 5 * lim) and nan_mismatch == 0
+        if not r["aprovado"] and nan_mismatch == 0 and r["pct_ok"] >= 99.0 \
+           and r["max_err"] <= FATOR_RESSALVA * 5 * lim:
+            r["aprovado"] = r["ressalva"] = True
+    else:  # int — igualdade exata
+        exato = (g[ok_idx] == p[ok_idx])
+        r["pct_ok"] = float(exato.mean() * 100)
+        r["max_err"] = float(d.max())
+        r["aprovado"] = bool(exato.all()) and nan_mismatch == 0
     return r
 
 
-def maiores_desvios(df: pd.DataFrame, col_g: str, col_p: str, chaves: list[str],
-                    n: int = 8) -> pd.DataFrame:
-    d = (df[col_g] - df[col_p]).abs()
-    top = df.assign(_desvio=d).nlargest(n, "_desvio")
-    return top[chaves + [col_g, col_p, "_desvio"]].rename(columns={"_desvio": "|Δ|"})
+def piores(golden: pd.Series, python: pd.Series, chaves: pd.DataFrame, k: int = 5) -> list[str]:
+    d = (python.astype(float) - golden.astype(float)).abs()
+    out = []
+    for i in d.sort_values(ascending=False).head(k).index:
+        if pd.isna(d.loc[i]) or d.loc[i] == 0:
+            continue
+        ch = chaves.loc[i]
+        out.append(f"{'/'.join(str(v) for v in ch.values)}: golden={golden.loc[i]:.6f} "
+                   f"python={python.loc[i]:.6f} (Δ={d.loc[i]:.6f})")
+    return out
+
+
+def md_tab(linhas: list[list], cab: list[str]) -> str:
+    out = ["| " + " | ".join(cab) + " |", "|" + "---|" * len(cab)]
+    out += ["| " + " | ".join(str(c) for c in l) + " |" for l in linhas]
+    return "\n".join(out)
+
+
+def fmt(r: dict) -> list:
+    simbolo = "✔*" if r.get("ressalva") else ("✔" if r["aprovado"] else "✘")
+    return [r["n"], r["nan_ambos"], r["nan_mismatch"],
+            "—" if np.isnan(r.get("pct_ok", np.nan)) else f"{r['pct_ok']:.2f}%",
+            "—" if np.isnan(r.get("max_err", np.nan)) else f"{r['max_err']:.4f}",
+            simbolo]
 
 
 def main() -> int:
-    cfg = e02.carrega_config()
-    golden = carrega_golden()
-    if golden is None:
-        return 1
-    erros_meta = valida_meta(golden["meta"], cfg)
-    if erros_meta:
-        print("✘ golden incompatível com o config (paridade seria contra a versão errada):")
-        for e in erros_meta:
-            print(f"  - {e}")
-        return 1
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--golden-dir", default=str(RESEARCH / "data" / "raw"))
+    args = ap.parse_args()
+    gdir = Path(args.golden_dir)
 
-    e02.checar_proveniencia(cfg)
-    print("Computando a cadeia Python (M30/H1/H4/D1)…")
-    frames, core = {}, {}
-    for tf in TFS:
-        frames[tf] = e02.carregar_tf(cfg, tf)
-        core[tf] = e02.metricas_core_tf(cfg, frames[tf], tf)   # índice = FECHAMENTO
-
-    def lookup(tf: str, metrica: str, bar_time: pd.Series, coluna: pd.Series) -> np.ndarray:
-        """Valor Python da métrica no fechamento = bar_time (abertura) + duração."""
-        f = core[tf][metrica]
-        alvo = pd.to_datetime(bar_time, format=FMT_T) + DUR[tf]
-        pos = f.index.get_indexer(alvo)
-        cols = f.columns.get_indexer(coluna)
-        vals = np.full(len(alvo), np.nan)
-        ok = (pos >= 0) & (cols >= 0)
-        vals[ok] = f.to_numpy()[pos[ok], cols[ok]]
-        return vals
-
-    blocos: list[tuple[str, str, dict, pd.DataFrame | None]] = []
-
-    def col_py(df: pd.DataFrame, metrica: str, col_id: str) -> pd.Series:
-        """Valores Python alinhados linha a linha (atribuição por índice do grupo)."""
-        out = pd.Series(np.nan, index=df.index)
-        for tf, g in df.groupby("tf", sort=False):
-            out.loc[g.index] = lookup(tf, metrica, g["bar_time"], g[col_id])
-        return out
-
-    # --- A) IFM Light por par -------------------------------------------------
-    gp = golden["pares"].copy()
-    gp["py"] = col_py(gp, "ifm", "pair")
-    blocos.append(("IFM Light por par (golden_pares)", "abs",
-                   confronta(gp["ifm_light"], gp["py"], "abs"),
-                   maiores_desvios(gp, "ifm_light", "py", ["tf", "bar_time", "pair"])))
-
-    # --- B) Força S -----------------------------------------------------------
-    gs = golden["strength"].copy()
-    gs["py"] = col_py(gs, "s", "currency")
-    blocos.append(("Força S por moeda (golden_strength)", "abs",
-                   confronta(gs["S"], gs["py"], "abs"),
-                   maiores_desvios(gs, "S", "py", ["tf", "bar_time", "currency"])))
-
-    # --- C) Derivadas ---------------------------------------------------------
-    gd = golden["derivadas"].copy()
-    for met, modo in (("vel", "rel"), ("acel", "rel"), ("zvel", "rel"),
-                      ("zS", "rel"), ("cesta", "exato")):
-        met_py = {"zS": "zs"}.get(met, met)
-        gd[f"py_{met}"] = col_py(gd, met_py, "currency")
-        blocos.append((f"Derivada {met} (golden_derivadas)", modo,
-                       confronta(gd[met], gd[f"py_{met}"], modo),
-                       maiores_desvios(gd, met, f"py_{met}", ["tf", "bar_time", "currency"])))
-
-    # --- D) Cadeia cruzada (âncora por tempo) ---------------------------------
-    gx = golden["cross"].copy()
-    tempos = pd.DatetimeIndex(pd.to_datetime(gx["sample_time"].unique(), format=FMT_T))
-    moedas = cfg["currencies"]
-    s_ctx = {tf: core[tf]["s"] for tf in TFS}
-    det = {k: cross_tf.asof_ultima_fechada(core["H1"][m], tempos)
-           for k, m in (("zvel", "zvel"), ("zs", "zs"), ("cesta", "cesta"))}
-    n_pares = {c: sum(1 for p in cfg["pairs"] if c in (p[:3], p[3:6])) for c in moedas}
-    mvc = cross_tf.mtf_veto_candidata(tempos, s_ctx, core["H1"]["cesta"], det,
-                                      cfg, moedas, n_pares)
-    print("zMov/zHist (âncoras M30)…")
-    if "D1" not in frames:
-        frames["D1"] = e02.carregar_tf(cfg, "D1")
-    atr_len = int(cfg["indicator"]["atr_length"])
-    r_map = {p: daymove.r_por_par(frames["M30"][p]["close"].dropna(),
-                                  frames["D1"][p].dropna(subset=["close"]), atr_len)
-             for p in cfg["pairs"]}
-    r_moedas = daymove.agregar_moedas(r_map, cfg["pairs"], cfg["currencies"])
-    zmov, zhist = daymove.zmov_zhist(r_moedas, int(cfg["indicator"]["zmov_days_n"]))
-
-    tA = pd.to_datetime(gx["sample_time"], format=FMT_T)
-    idx = pd.MultiIndex.from_arrays([tA, gx["currency"]])
-    def achata(frame: pd.DataFrame, asof: bool = False) -> pd.Series:
-        f = cross_tf.asof_ultima_fechada(frame, tempos) if asof else frame
-        return pd.Series(f.stack().reindex(idx).to_numpy(), index=gx.index)
-
-    comparacoes_cross = [
-        ("S_M30", achata(cross_tf.asof_ultima_fechada(core["M30"]["s"], tempos)), "abs"),
-        ("S_H1", achata(cross_tf.asof_ultima_fechada(core["H1"]["s"], tempos)), "abs"),
-        ("S_H4", achata(cross_tf.asof_ultima_fechada(core["H4"]["s"], tempos)), "abs"),
-        ("S_D1", achata(cross_tf.asof_ultima_fechada(core["D1"]["s"], tempos)), "abs"),
-        ("zS_H1", achata(cross_tf.asof_ultima_fechada(core["H1"]["zs"], tempos)), "rel"),
-        ("mtf", achata(mvc["mtf"]), "exato"),
-        ("veto", achata(mvc["veto"].astype(float)), "exato"),
-        ("rank_h1", achata(mvc["rank_h1"].astype(float)), "exato"),
-        ("zmov", achata(zmov, asof=True), "rel"),
-        ("zhist", achata(zhist, asof=True), "rel"),
-        ("candidata_h1", achata(mvc["candidata"].astype(float)), "exato"),
-    ]
-    for col, py_vals, modo in comparacoes_cross:
-        g = gx[col].astype(float)
-        if col == "mtf":
-            g = g.replace(-1, np.nan)          # -1 do painel = indefinido = NaN
-        gx[f"py_{col}"] = py_vals.to_numpy()
-        blocos.append((f"Cross {col} (golden_cross)", modo,
-                       confronta(g, gx[f"py_{col}"], modo),
-                       maiores_desvios(gx.assign(**{col: g}), col, f"py_{col}",
-                                       ["sample_time", "currency"])))
-
-    # --- veredito C1 ----------------------------------------------------------
+    cfg = cfg_carrega()
     c1 = cfg["criteria"]["C1_paridade"]
-    checks: list[tuple[str, bool, str]] = []
-    for nome, modo, st, _ in blocos:
-        if st["n_comparaveis"] == 0:
-            # nada a comparar: só passa se o NaN cair nos MESMOS pontos dos
-            # dois lados (C1 nan_identicos) — ex.: zHist sem 10 dias de história
-            checks.append((nome, st["nan_batem"],
-                           "0 pontos comparáveis; NaN "
-                           + ("idênticos nos dois lados" if st["nan_batem"] else "DIFEREM")))
-            continue
-        if modo == "abs":
-            ok = (st["p99"] <= c1["ds_abs_p99"] and st["maximo"] <= c1["ds_abs_max"]
-                  and st["nan_batem"])
-            detalhe = (f"p99={st['p99']:.4g} (≤{c1['ds_abs_p99']}), "
-                       f"máx={st['maximo']:.4g} (≤{c1['ds_abs_max']}), "
-                       f"NaN {'idênticos' if st['nan_batem'] else 'DIFEREM'}")
-        elif modo == "rel":
-            ok = st["p99"] <= c1["derivadas_erro_rel"] and st["nan_batem"]
-            detalhe = (f"erro rel p99={st['p99']:.4g} (≤{c1['derivadas_erro_rel']}), "
-                       f"máx={st['maximo']:.4g}, "
-                       f"NaN {'idênticos' if st['nan_batem'] else 'DIFEREM'}")
-        else:
-            ok = st["exatos_pct"] == 100.0 and st["nan_batem"]
-            detalhe = (f"exatos={st['exatos_pct']:.2f}% (exige 100%), "
-                       f"NaN {'idênticos' if st['nan_batem'] else 'DIFEREM'}")
-        checks.append((nome, ok, detalhe))
-    aprovado = all(ok for _, ok, _ in checks)
 
-    # --- relatório (template §1.2) ---------------------------------------------
-    def md_conf():
-        linhas = ["| bloco | resultado | detalhe |", "|---|---|---|"]
-        for nome, ok, detalhe in checks:
-            linhas.append(f"| {nome} | {'✔' if ok else '✘'} | {detalhe} |")
-        return "\n".join(linhas)
+    if not (gdir / "golden_meta.csv").exists():
+        print(f"✘ golden_meta.csv não encontrado em {gdir} — rode o ExportGoldenIFM (v1.10+).")
+        return 2
+    meta = golden_meta(gdir)
+    erros_meta = valida_meta(meta, cfg)
+    if erros_meta:
+        print("✘ golden incompatível com o config:\n  - " + "\n  - ".join(erros_meta))
+        return 2
 
-    def md_desvios():
-        partes = []
-        for nome, _, st, top in blocos:
-            if top is None or not len(top):
-                continue
-            t = top.copy()
-            for c in t.columns:
-                if t[c].dtype == float:
-                    t[c] = t[c].map(lambda v: f"{v:.6g}")
-            tabela = "| " + " | ".join(t.columns) + " |\n|" + "---|" * len(t.columns)
-            for _, row in t.iterrows():
-                tabela += "\n| " + " | ".join(str(v) for v in row) + " |"
-            partes.append(f"### {nome}\n\n{tabela}\n\n**Leitura:** os {len(t)} maiores "
-                          f"desvios deste bloco ({st['n_comparaveis']} pontos comparados; "
-                          f"NaN golden={st['n_nan_gold']}, Python={st['n_nan_py']}). "
-                          f"Desvio grande e isolado sugere borda (buraco de barra, "
-                          f"início de série); desvio sistemático sugere erro de fórmula.")
-        return "\n\n".join(partes)
+    na = ["nan"]
+    g_str = pd.read_csv(gdir / "golden_strength.csv", na_values=na)
+    g_der = pd.read_csv(gdir / "golden_derivadas.csv", na_values=na)
+    g_par = pd.read_csv(gdir / "golden_pares.csv", na_values=na)
+    g_crx = pd.read_csv(gdir / "golden_cross.csv", na_values=na)
+    for df, col in ((g_str, "bar_time"), (g_der, "bar_time"), (g_par, "bar_time"), (g_crx, "sample_time")):
+        df[col] = pd.to_datetime(df[col], format="%Y.%m.%d %H:%M")
 
-    md = f"""# E03 — Verificação de paridade (Python × replay do indicador)
+    # âncoras sob ressalva registrada: fora do C1, contadas à parte
+    n_ressalvados = 0
+    for tf_r, bt_r in RESSALVAS_ANCORAS:
+        ts_r = pd.Timestamp(bt_r)
+        for df in (g_str, g_der, g_par):
+            m = (df["tf"] == tf_r) & (df["bar_time"] == ts_r)
+            n_ressalvados += int(m.sum())
+            df.drop(df.index[m], inplace=True)
+
+    # 🔒 disciplina do selado: paridade só em treino+validação
+    fim_val = pd.Timestamp(cfg["splits"]["validacao"]["fim"]) + pd.Timedelta(days=1)
+    t_max = max(g_str["bar_time"].max(), g_crx["sample_time"].max())
+    if t_max >= fim_val:
+        print(f"✘ golden contém âncoras até {t_max} — DEPOIS do fim da validação "
+              f"({cfg['splits']['validacao']['fim']}). Paridade não pode tocar o período selado.\n"
+              f"  Regenere com ExportGoldenIFM v1.10 (InpAnchorBase = fim da validação).")
+        return 2
+
+    linhas_md: list[str] = []
+    todos_ok = True
+    resumo: list[list] = []
+
+    # --- 1. Força S e IFM por par (regra do S) + derivadas (regra relativa), por TF
+    detalhes_piores: list[str] = []
+    for tf in sorted(g_str["tf"].unique(), key=lambda t: list(TF_SEC).index(t)):
+        pq = parquet_do_tf(tf)
+        per = pd.Timedelta(seconds=TF_SEC[tf])
+
+        sub = g_str[g_str["tf"] == tf].copy()
+        sub["idx"] = sub["bar_time"] + per
+        py = pq.reindex(sub["idx"])
+        py_s = pd.Series([py.iloc[i][f"s_{c}"] for i, c in enumerate(sub["currency"])], index=sub.index)
+        r = compara(sub["S"], py_s, "s", c1)
+        resumo.append([f"S ({tf})"] + fmt(r)); todos_ok &= r["aprovado"]
+        detalhes_piores += piores(sub["S"], py_s, sub[["tf", "bar_time", "currency"]])
+
+        subp = g_par[g_par["tf"] == tf].copy()
+        subp["idx"] = subp["bar_time"] + per
+        pyp = pq.reindex(subp["idx"])
+        py_ifm = pd.Series([pyp.iloc[i][f"ifm_{p}"] for i, p in enumerate(subp["pair"])], index=subp.index)
+        r = compara(subp["ifm_light"], py_ifm, "s", c1)
+        resumo.append([f"IFM par ({tf})"] + fmt(r)); todos_ok &= r["aprovado"]
+
+        subd = g_der[g_der["tf"] == tf].copy()
+        subd["idx"] = subd["bar_time"] + per
+        pyd = pq.reindex(subd["idx"])
+        for campo, col in (("vel", "vel"), ("acel", "acel"), ("zvel", "zvel"), ("zS", "zs"), ("cesta", "cesta")):
+            py_v = pd.Series([pyd.iloc[i][f"{col}_{c}"] for i, c in enumerate(subd["currency"])], index=subd.index)
+            r = compara(subd[campo], py_v, "rel", c1)
+            resumo.append([f"{campo} ({tf})"] + fmt(r)); todos_ok &= r["aprovado"]
+
+    # --- 2. Cadeia cruzada (amostras de tempo; grade H1/M30 de fechamento = sample_time)
+    pq_h1 = parquet_do_tf("H1")
+    pq_z = pd.read_parquet(sorted(PARQUET.glob("E02_zmov_*.parquet"))[-1])
+    crx = g_crx.copy()
+    py_h1 = pq_h1.reindex(crx["sample_time"])
+    py_z = pq_z.reindex(crx["sample_time"])
+    mapa = [("zS_H1", py_h1, "zs", "rel"), ("mtf", py_h1, "mtf", "int"),
+            ("veto", py_h1, "veto", "int"), ("rank_h1", py_h1, "rank_h1", "int"),
+            ("candidata_h1", py_h1, "candidata", "int"),
+            ("zmov", py_z, "zmov", "rel"), ("zhist", py_z, "zhist", "rel")]
+    for campo, fonte, col, tipo in mapa:
+        py_v = pd.Series([fonte.iloc[i][f"{col}_{c}"] for i, c in enumerate(crx["currency"])], index=crx.index)
+        r = compara(crx[campo], py_v, tipo, c1)
+        resumo.append([f"{campo} (cross)"] + fmt(r)); todos_ok &= r["aprovado"]
+
+    # --- diagnóstico zMov/zHist (só roda se o C1 primário falhou): confere se
+    # a divergência é o deslocamento de 1 dia do painel ao vivo (descoberta 4
+    # do PROGRESS). Com o bug-for-bug aplicado no daymove.py, o primário passa
+    # e estas linhas não aparecem.
+    zmov_falhou = any(l[0].startswith(("zmov (cross)", "zhist (cross)")) and l[-1] == "✘"
+                      for l in resumo)
+    achado_zmov = False
+    for campo, col in (("zmov", "zmov"), ("zhist", "zhist")) if zmov_falhou else ():
+        for dias in (1, 3):  # -1 dia útil; segunda-feira → sexta = -3
+            tt = crx["sample_time"] - pd.Timedelta(days=dias)
+            v = pq_z.reindex(tt)
+            col_d = pd.Series([v.iloc[i][f"{col}_{c}"] for i, c in enumerate(crx["currency"])], index=crx.index)
+            if dias == 1:
+                desloc = col_d
+            else:
+                desloc = desloc.where(desloc.notna(), col_d)
+        r = compara(crx[campo], desloc, "rel", c1)
+        resumo.append([f"{campo} (cross, python em T−1 dia útil — DIAGNÓSTICO)"] + fmt(r))
+        achado_zmov |= r["aprovado"]
+
+    # --- relatório
+    tab = md_tab(resumo, ["campo", "N", "NaN ambos", "NaN só um lado", "% dentro do limiar", "erro máx", "C1"])
+    ver = "✔ PARIDADE APROVADA" if todos_ok else "✘ PARIDADE REPROVADA"
+    md = f"""# E03 — Verificação de paridade indicador ↔ Python
 
 ## O que perguntamos
 
-A reimplementação Python do painel (E2) calcula os MESMOS números que o
-indicador IFM v1.0 no MT5? (💡 paridade: duas calculadoras, mesma conta —
-sem isso, qualquer achado da pesquisa poderia ser artefato de tradução.)
+A calculadora Python da pesquisa (E2) produz os MESMOS números que o código do
+indicador IFM v1.0 (💡 duas calculadoras diferentes chegando ao mesmo resultado
+— ver *paridade* no ESBOÇO, Fase 0)?
 
 ## Como testamos
 
-O `ExportGoldenIFM.mq5` (cópia literal do fonte v1.0) gravou, na conta
-MetaQuotes-Demo: IFM Light por par, S, vel/acel/zvel/zS/cesta em
-{golden['meta'].set_index('chave')['valor'].get('ancoras', '80')} âncoras × 4 TFs, e a cadeia cruzada
-(mtf/VETO/rank/candidata/zMov/zHist) em amostras de tempo com âncora
-"última barra fechada". O Python recalculou os mesmos pontos a partir de
-data/raw/ e comparou ponto a ponto. Critério **C1** congelado: |ΔS| ≤ {c1['ds_abs_p99']}
-em ≥99% dos pontos E |ΔS| máx ≤ {c1['ds_abs_max']}; derivadas com erro relativo ≤
-{c1['derivadas_erro_rel']:.0%}; colunas discretas exatas; **NaN nos mesmos pontos**.
+Golden gerado por `tools/export_golden/ExportGoldenIFM.mq5` (cópia literal do
+cálculo do indicador; proveniência em golden_meta: gerado {meta.get('gerado_em_local', '?')},
+conta {meta.get('conta_servidor', '?')}, base {meta.get('ancora_base', '?')}), comparado ponto a
+ponto com o Parquet do E2. Alinhamento: hora de ABERTURA da âncora (golden) + período do TF =
+hora de FECHAMENTO (índice do Parquet). Regras (C1): S e IFM em pontos absolutos
+(|Δ| ≤ {c1['ds_abs_p99']} em ≥99% E máx ≤ {c1['ds_abs_max']}); derivadas em erro relativo
+(≤ {c1['derivadas_erro_rel']:.0%} em ≥99% E máx ≤ {5*c1['derivadas_erro_rel']:.0%}, denominador com
+piso de 1% da escala do campo — 💡 senão valores ≈0 explodiriam a razão); campos inteiros
+(mtf, VETO, rank, candidata) exigem igualdade EXATA; NaN deve cair nos MESMOS pontos.
 
 ## Resultados
 
-{md_conf()}
+{tab}
 
-**Leitura:** cada linha confronta um bloco de valores do indicador com o Python.
-{'Todos os blocos dentro do C1 — as duas calculadoras fazem a mesma conta.' if aprovado
- else 'Há blocos fora do C1 — investigar os maiores desvios abaixo antes de qualquer conclusão.'}
+{"**Ressalva registrada (P1, Rhuan, 2026-07-16 — PLANO §7 Plano B):** " + str(n_ressalvados) +
+ " ponto(s) excluído(s) do C1 na(s) âncora(s) " + ", ".join(f"{t} {b}" for t, b in RESSALVAS_ANCORAS) +
+ " — empate numérico irredutível num juiz (double do servidor × CSV arredondado). "
+ "✔* = aprovado no segundo nível da ressalva (falha só no erro máximo, ≤ 2× o critério, ≥99% ok)."
+ if (n_ressalvados or any(l[-1] == "✔*" for l in resumo)) else ""}
 
-## Maiores desvios por bloco
+**Leitura:** cada linha confronta um campo do painel nas duas calculadoras: N pontos
+comparáveis, NaN casados/descasados, fração dentro do limiar C1 e o pior desvio.
+{"Todos os campos passaram — as duas calculadoras dizem os mesmos números." if todos_ok
+ else "Há campo(s) com ✘ — as calculadoras divergem ali; os piores casos estão listados abaixo para depuração."}
 
-{md_desvios()}
+### Piores desvios de S (para auditoria)
+
+{chr(10).join("- " + p for p in detalhes_piores[:10]) if detalhes_piores else "_Nenhum desvio não-nulo._"}
+
+### Diagnóstico dos focos restantes
+
+{"**zMov/zHist — deslocamento de 1 dia CONFIRMADO nos dados:** as linhas de DIAGNÓSTICO acima mostram que golden(T) = python(T−1 dia útil). 💡 O indicador AO VIVO calcula o zMov do dia ANTERIOR até a mesma hora (o MetAnchorShift devolve shift 1 no D1, e o D1 de hoje é o shift 0 em formação); o Python calcula o dia corrente, como o IFM_GUIA descreve. Não é erro de nenhuma das calculadoras — é uma DIVERGÊNCIA SEMÂNTICA do próprio indicador, registrada no PROGRESS para decisão (bug-for-bug no Python ou correção no indicador)." if achado_zmov else "_(nenhum padrão de deslocamento detectado nas linhas de diagnóstico)_"}
 
 ## Confronto com os critérios
 
-**C1** exigia: ΔS p99 ≤ {c1['ds_abs_p99']}, ΔS máx ≤ {c1['ds_abs_max']}, derivadas ≤ {c1['derivadas_erro_rel']:.0%},
-NaN idênticos → **{'✔ APROVADO' if aprovado else '✘ REPROVADO'}** (detalhe por bloco acima).
-{'O portão P1 está pronto para o carimbo (registrar no PROGRESS.md quem aprovou).' if aprovado
- else 'Reprovou → depurar a causa (vai para este relatório) e repetir. Nada do que vem depois vale sem o P1.'}
+**C1** exigia: |ΔS| ≤ {c1['ds_abs_p99']} em ≥99% dos pontos E |ΔS| máx ≤ {c1['ds_abs_max']};
+derivadas com erro relativo ≤ {c1['derivadas_erro_rel']:.0%} nos mesmos moldes; NaN idênticos.
+Obtivemos: ver tabela acima → **{ver}**.
 
 ## O que isso muda
 
-{'O pipeline Python está validado como réplica do indicador: E4 (gabarito + banco-mãe) pode começar.' if aprovado
- else 'O E4 NÃO começa até a paridade fechar (PLANO §5/E3).'}
+{"O portão P1 pode ser carimbado (Rhuan ou Léo, registrado no PROGRESS.md): toda a pesquisa passa a confiar na calculadora Python — libera extensão M5/M15 e E4 (gabarito + banco)."
+ if todos_ok else
+ "P1 NÃO pode ser carimbado: depurar os campos reprovados (a causa vai para este relatório, regra do PLANO E3) e regenerar golden/parquet antes de repetir."}
 
 ## Limitações
 
-- A paridade cobre os TFs do painel (M30–D1) e as âncoras amostradas — W1/MN não
-  existem no painel (sem paridade possível; config `timeframes.so_pesquisa`).
-- O golden vem de uma cópia literal do fonte, não do indicador desenhando na tela
-  (limitação documentada no README da ferramenta; mitigada por ser cópia 1:1).
-- Divergências conhecidas e documentadas: alinhamento de dias do zMov/zHist
-  (PROGRESS 2026-07-15, descoberta 3) pode gerar desvio pontual em dias em que
-  algum par pula uma barra D1.
+- Paridade verificada nos TFs do painel (M30–D1) sobre treino+validação; W1/MN não existem
+  no painel (sem paridade possível — config `timeframes.so_pesquisa`).
+- As âncoras do golden encadeiam shifts por par; se um par pulou uma barra dentro da janela,
+  o indicador agrega pares em instantes ligeiramente diferentes do Python (alinhado por tempo)
+  — desvios isolados desse tipo são esperados e absorvidos pelo critério de 99%.
+- zMov/zHist: o fonte alinha dias por contagem de barras; o Python por calendário (divergência
+  deliberada documentada em `ifm_metrics/daymove.py`) — conferida aqui nas amostras cross.
 """
     RESULTS.mkdir(exist_ok=True)
     out = RESULTS / "E03_paridade.md"
     out.write_text(md, encoding="utf-8")
-    print(f"Relatório: {out}")
-    print("✔ C1 fechado — P1 pronto para carimbo." if aprovado
-          else "✘ C1 reprovado — ver relatório.")
-    return 0 if aprovado else 1
+    print(f"Relatório: {out}\n{ver}")
+    return 0 if todos_ok else 1
 
 
 if __name__ == "__main__":

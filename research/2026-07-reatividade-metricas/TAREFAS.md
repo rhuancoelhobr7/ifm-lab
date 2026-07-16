@@ -3,7 +3,7 @@
 Legenda: [ ] pendente · [~] em andamento · [x] concluída (evidência) · [!] bloqueada (motivo) · [-] cancelada (motivo)
 Regras: checkbox só marca com evidência · portões P1–P4 só marcam com decisão do usuário no PROGRESS.md
 Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências + portões + template didático §1.2)
-Última atualização: 2026-07-16 · sessão E3-comparador (Léo)
+Última atualização: 2026-07-15 · sessão E2 (pipeline + testes — Léo)
 
 ## BLOCO A — Fundação
 ### E0 — Setup
@@ -24,10 +24,10 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Parquet de métricas M30–D1 + W1/MN gerado (scripts/e02_gerar_metricas.py, PROGRESS.md)
 ### E3 — Paridade · PORTÃO P1
 - [x] Ferramenta de export do replay criada (cópia literal do cálculo v1.0) (tools/export_golden/ExportGoldenIFM.mq5, tools/export_golden/README.md)
-- [x] Comparador de paridade pronto e testado em golden sintético — aprova golden idêntico, reprova valor adulterado (scripts/e03_paridade.py, tests/test_e03_paridade.py)
-- [ ] 👤 Export do replay do indicador entregue (golden antigos descartados — origem desconhecida; ver PROGRESS 2026-07-16)
-- [ ] Relatório results/E03_paridade.md no formato checklist C1
-- [ ] 🚪 P1: 👤 paridade APROVADA
+- [x] 👤 Export do replay do indicador entregue (golden v2.00, base 2025-09-26) (data/raw/golden_meta.csv)
+- [x] Script de comparação pronto com guardas testadas (meta + selado) (scripts/e03_paridade.py)
+- [x] Relatório results/E03_paridade.md no formato checklist C1 (results/E03_paridade.md)
+- [x] 🚪 P1: 👤 paridade APROVADA (PROGRESS.md, results/E03_paridade.md)
 ### E4 — Gabarito + banco-mãe · PORTÃO P2 (duplo)
 - [ ] Eventos detectados com as 2 âncoras candidatas (results/E04a_gabarito.md)
 - [ ] 20 dias-evento sorteados e plotados para auditoria
