@@ -27,7 +27,9 @@ PARES_G8 = [
 ]
 MOEDAS = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"]
 TF_FREQ = {"M30": "30min", "H1": "1h", "H4": "4h", "D1": "1D"}
-N_BARRAS = {"M30": 480, "H1": 240, "H4": 80, "D1": 60}
+# M30 cobre 40 dias: o suficiente p/ zMov/zHist terem valores reais
+# (ATR 14 dias + mínimo de 10 dias de histórico na mesma hora)
+N_BARRAS = {"M30": 1920, "H1": 960, "H4": 240, "D1": 60}
 
 
 def _escrever_raw(raw: Path, seed: int) -> None:
