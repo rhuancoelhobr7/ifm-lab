@@ -31,7 +31,7 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 ### E4 — Gabarito + banco-mãe · PORTÃO P2 (duplo)
 - [x] Eventos detectados com as 2 âncoras candidatas (results/E04a_gabarito.md, results/E04_eventos.csv, scripts/e04a_gabarito.py)
 - [x] 20 dias-evento sorteados e plotados para auditoria (results/E04a_amostras)
-- [ ] 🚪 P2a: 👤 gabarito APROVADO (C2) — âncora escolhida e congelada no config.yaml
+- [x] 🚪 P2a: 👤 gabarito APROVADO (C2) — âncora A-rompimento escolhida e congelada (PROGRESS.md, config.yaml)
 - [ ] Banco de estados gerado (métricas t0 + contexto MN→M5 última barra fechada + sessões + alvos intraday)
 - [ ] Splits físicos: treino / validação / data/sealed/
 - [ ] Relatório de sanidade results/E04b_auditoria.md

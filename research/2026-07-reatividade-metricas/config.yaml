@@ -185,7 +185,11 @@ event:
       nunca_recua_abaixo_pct: 10 # ...e nunca mais recua abaixo de 10%
     a_rompimento:
       definicao: "último cruzamento do preço da cesta pelo nível de abertura do dia antes do trecho final do movimento"
-  ancora_escolhida: null         # 🚪 congela no P2a (auditoria C2)
+  # 🚪 P2a CARIMBADO (2026-07-16, Léo): auditoria C2 sobre os 20 dias de
+  # results/E04a_amostras/ — "gostei de todas as âncoras" (20/20 nas duas);
+  # escolhida a A-ROMPIMENTO (a mais cedo). Resolução: caminho M30 uniforme
+  # (adendo P2a). CONGELADO — mexer na régua depois disso é proibido.
+  ancora_escolhida: a_rompimento
   plano_b:                       # PLANO §7, se C2 reprovar 3 rodadas
     magnitude_min_atr: 1.5
     unanimidade_min_pares: 7
