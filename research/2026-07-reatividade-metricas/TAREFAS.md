@@ -3,7 +3,7 @@
 Legenda: [ ] pendente · [~] em andamento · [x] concluída (evidência) · [!] bloqueada (motivo) · [-] cancelada (motivo)
 Regras: checkbox só marca com evidência · portões P1–P4 só marcam com decisão do usuário no PROGRESS.md
 Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências + portões + template didático §1.2)
-Última atualização: 2026-07-15 · sessão E2 (pipeline + testes — Léo)
+Última atualização: 2026-07-16 · sessão E4a (gabarito — Léo)
 
 ## BLOCO A — Fundação
 ### E0 — Setup
@@ -29,8 +29,8 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Relatório results/E03_paridade.md no formato checklist C1 (results/E03_paridade.md)
 - [x] 🚪 P1: 👤 paridade APROVADA (PROGRESS.md, results/E03_paridade.md)
 ### E4 — Gabarito + banco-mãe · PORTÃO P2 (duplo)
-- [ ] Eventos detectados com as 2 âncoras candidatas (results/E04a_gabarito.md)
-- [ ] 20 dias-evento sorteados e plotados para auditoria
+- [x] Eventos detectados com as 2 âncoras candidatas (results/E04a_gabarito.md, results/E04_eventos.csv, scripts/e04a_gabarito.py)
+- [x] 20 dias-evento sorteados e plotados para auditoria (results/E04a_amostras)
 - [ ] 🚪 P2a: 👤 gabarito APROVADO (C2) — âncora escolhida e congelada no config.yaml
 - [ ] Banco de estados gerado (métricas t0 + contexto MN→M5 última barra fechada + sessões + alvos intraday)
 - [ ] Splits físicos: treino / validação / data/sealed/

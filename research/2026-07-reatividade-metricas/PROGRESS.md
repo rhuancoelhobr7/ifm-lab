@@ -6,7 +6,7 @@
 
 ## Onde estamos
 
-**Etapa atual:** **E3 CONCLUÍDA — 🚪 P1 CARIMBADO (2026-07-16).** Paridade indicador ↔ Python aprovada com 100% dos campos dentro do C1 (ver decisão de portão abaixo). Parquet de métricas completo nos 8 TFs (hash `763beb9d23a1`, inclui M5/M15 pós-P1: M5 93146+55446 seladas, M15 31058+18486). Próxima etapa: **E4 — gabarito de eventos + banco-mãe (portão P2 duplo)**.
+**Etapa atual:** **E4a PRONTA — 🚪 auditoria C2 aguardando o dono da pesquisa (P2a).** Gabarito gerado (2026-07-16): **323 eventos** (284 treino + 39 validação; selado intocado), duas âncoras candidatas calculadas, 20 dias-evento sorteados e plotados em `results/E04a_amostras/`. A auditoria 👤 é responder, gráfico a gráfico: "é aqui que um trader diria que a tendência começou?" (≥80% numa das âncoras → P2a). Contexto anterior: E3 concluída, P1 carimbado (paridade 100% dentro do C1), parquet completo nos 8 TFs (hash `763beb9d23a1`).
 
 **⚠️ 2026-07-15 (noite) — o reexport recebido NÃO serve para o plano congelado.** O commit `1465b92` substituiu o `data/raw/` por um export de **outro servidor** (`Upcomers-Server`, antes `MetaQuotes-Demo`) com três problemas fatais: (1) **histórico só desde 2026-01-12** em TODOS os TFs (~6 meses; o config exige 2016/2021/2024 — treino, validação e teste selado ficam impossíveis); (2) **faltam EURUSD, GBPUSD e USDJPY** (o manifest nem os tentou — provável sufixo/ausência no Market Watch do broker novo; sem os majors não há cesta de 7 pares por moeda e o painel G8 quebra); (3) **offset GMT+2 em pleno julho** (MetaQuotes era +3 no verão) — outro regime de fuso, que invalidaria a calibração de sessões congelada. Além disso a substituição **apagou os `golden_*.csv`** (insumo da paridade E3) **e o `server_meta.csv`**. Nada está perdido: o export MetaQuotes-Demo completo (229 arquivos) é recuperável do commit `b7f19a8`.
 
@@ -36,6 +36,8 @@
 
 **2026-07-15 — Fonte de dados: MetaQuotes-Demo (decidido por Rhuan).** Rhuan optou pela via recomendada — descartou o export Upcomers e voltou a exportar na conta MetaQuotes-Demo (reexport em andamento quando o script v1.00 travou no W1; corrigido no v1.10 com fatias anuais). `data/raw/` restaurado do commit `b7f19a8` na íntegra. Pendência residual: só o reexport M30/H1 desde 2021-01-01.
 
+**2026-07-16 — Régua do gabarito: M30 uniforme + sensibilidade M15 (decidido por Léo; adendo do P2a).** O config definia a âncora A-20/10 em candle M15, mas M15 só existe desde 2024-07 (períodos congelados) e o gabarito precisa cobrir 2021→2025 para os TFs H1/M30 terem eventos no E5. Decisão: caminho da cesta e âncoras em **M30 para todo o período** (régua única, comparável entre eras); nos dias 2024-07+ a âncora é recalculada em M15 como verificação. Medição no E04a: mediana |Δâncora| = 15 min, 89% ≤ 1 candle M30 → a régua M30 não distorce a latência. O congelamento final da âncora (definição E resolução) acontece no P2a.
+
 ## Decisões de portão (P1–P4)
 
 **🚪 P1 — PARIDADE APROVADA (decidido por Rhuan, 2026-07-16).** Evidência: `results/E03_paridade.md` — todos os campos (S, IFM por par, vel, acel, zvel, zS, cesta em M30/H1/H4/D1; zS/mtf/VETO/rank/candidata/zMov/zHist na cadeia cruzada) com 100% dos pontos dentro do C1 e erro máximo 0.0000 (zvel M30: 0.96% relativo, dentro do 1%). Duas decisões que compõem o carimbo:
@@ -48,7 +50,7 @@ A calculadora Python é oficialmente a régua da pesquisa. Liberados: extensão 
 
 ## Pendências que dependem do usuário (👤)
 
-_Nenhuma no momento. A próxima participação 👤 é a auditoria C2 do gabarito (P2a), no E4._
+- **🚪 Auditoria C2 do gabarito (P2a) — Léo ou Rhuan:** abrir os 20 PNGs de `results/E04a_amostras/` (cada um mostra o caminho da cesta do dia com as DUAS âncoras marcadas: verde = A-20/10, vermelho = A-rompimento) e responder, para cada âncora, em quantos dos 20 gráficos "é aqui que um trader diria que a tendência começou". ≥16/20 (80%) numa das âncoras → P2a aprovado: registrar aqui QUEM decidiu, qual âncora venceu, e o placar; a âncora congela no config.yaml e o E4b (banco-mãe) começa. Reprovou → ajustar definição e re-sortear (máx. 3 rodadas; nunca os mesmos 20 dias).
 
 <details><summary>Pendências resolvidas (histórico)</summary>
 
@@ -83,11 +85,12 @@ _Nenhuma no momento. A próxima participação 👤 é a auditoria C2 do gabarit
 | 2026-07-16 | E3-preparo (Claude/Rhuan) | golden_*.csv antigos descartados como verdade C1 (origem desconhecida — decisão de Rhuan; quarentena em legadoV2_*). Criada a ferramenta oficial de replay `tools/export_golden/ExportGoldenIFM.mq5` (cópia literal do cálculo do IFM v1.0 + golden_meta com proveniência completa). Pendência 👤: rodar no MT5. | (este commit) |
 | 2026-07-16 | E3 (comparador + correção da ferramenta) | Golden v1.00 recebido mas ancorado em HOJE (julho > fim dos dados E dentro do selado) → ExportGoldenIFM v1.10 com `InpAnchorBase` (default = fim da validação 2025-09-30; paridade nunca toca o selado). `scripts/e03_paridade.py` escrito: compara golden × Parquet E2 (S/IFM absoluto, derivadas relativo, inteiros exatos, NaN casados), guardas de meta e de selado TESTADAS (recusou o golden de julho), relatório checklist C1 automático. Pendência 👤: re-rodar a ferramenta v1.10. | (este commit) |
 | 2026-07-16 | E3 (diagnóstico golden v2.00) | v1.10 rodada na base do selado errada... corrigida; golden v2.00 (base 26/09) comparado: H1/H4/D1 + cadeia cruzada BIT-PERFEITOS; 2 focos diagnosticados (1 barra EURAUD no fio da navalha; zMov = dia anterior no vivo, confirmado com deslocamento 0.0 exato). Descobertas 4 e 5 registradas. | c31af46 |
-| 2026-07-16 | E3-fecho (Claude; decisões de Rhuan) | P1 CARIMBADO: ressalva M30 (âncora 26/09 22:30, 44 pontos) + bug-for-bug do zMov no daymove.py (34 testes verdes) → paridade 100% em todos os campos, erro máx 0.0000. Parquet estendido a M5/M15 (cache do e02 corrigido para ser por-TF). | (este commit) |
+| 2026-07-16 | E3-fecho (Claude; decisões de Rhuan) | P1 CARIMBADO: ressalva M30 (âncora 26/09 22:30, 44 pontos) + bug-for-bug do zMov no daymove.py (34 testes verdes) → paridade 100% em todos os campos, erro máx 0.0000. Parquet estendido a M5/M15 (cache do e02 corrigido para ser por-TF). | 9983410 |
+| 2026-07-16 | E4a (gabarito — Léo) | Régua M30 decidida (adendo P2a). `ifm_metrics/gabarito.py` + `e04a_gabarito.py`: dia Tóquio→NY em hora do servidor (DST europeu via IANA), caminho da cesta em ATRs, evento = magnitude ≥1 ATR + ≥6/7 pares + ER ≥0.30, âncoras A-20/10 e A-rompimento vetorizadas (8 testes à mão). **323 eventos** (284 treino, 39 validação; selado intocado), sensibilidade M15 medida (89% ≤1 candle M30), `results/E04a_gabarito.md` + `E04_eventos.csv` + 20 amostras plotadas. 42 testes verdes. Pendência 👤: auditoria C2. | (este commit) |
 
 ## Próxima etapa
 
-**E4 — Gabarito de eventos + banco-mãe (PORTÃO P2 duplo).** Ordem interna do PLANO: (1) detectar os eventos de tendência diária com as DUAS âncoras candidatas (config `event`) e gerar `results/E04a_gabarito.md` com os 20 dias-evento sorteados e plotados; (2) 👤 auditoria C2 — escolher a âncora, congelar no config (adendo do P2); (3) banco de estados + splits físicos + `results/E04b_auditoria.md`; (4) 👤 auditoria C3. Insumos prontos: parquet dos 8 TFs (hash `763beb9d23a1`), janelas de exclusão do E01, sessões congeladas em hora do servidor.
+**E4 — Gabarito de eventos + banco-mãe (PORTÃO P2 duplo).** Passo (1) FEITO em 2026-07-16: eventos detectados com as duas âncoras, `results/E04a_gabarito.md` + 20 amostras plotadas. Agora: (2) 👤 **auditoria C2** (pendência acima) — escolher a âncora, congelar no config (adendo do P2); (3) banco de estados + splits físicos + `results/E04b_auditoria.md`; (4) 👤 auditoria C3. Insumos prontos: parquet dos 8 TFs (hash `763beb9d23a1`), janelas de exclusão do E01, sessões congeladas em hora do servidor, `results/E04_eventos.csv`.
 
 <details><summary>E3 (concluída) — plano original</summary>
 
