@@ -10,7 +10,28 @@ de texto simples (CSV), um arquivo por par×TF — 224 arquivos no total — mai
 `_manifest.csv` que resume o que foi exportado e anota a diferença entre o
 relógio do servidor e o GMT (usada depois para calibrar as sessões).
 
-## Passo a passo (não precisa saber programar)
+## Duas formas de exportar
+
+Há dois exportadores equivalentes (mesmos CSVs, mesmo `_manifest.csv`):
+
+1. **`ExportBarsG8.mq5`** — roda DENTRO do MetaTrader (passo a passo abaixo).
+2. **`export_bars_g8.py`** — roda num terminal Python **na máquina onde o MT5
+   está instalado** (o pacote `MetaTrader5` é Windows-only). Vantagens: escreve
+   direto em `data/raw/` da pesquisa, e tem **trava de servidor** — recusa
+   exportar se a conta logada não for a `MetaQuotes-Demo` exigida pelo
+   `config.yaml` (a lição do reexport reprovado de 2026-07-15).
+
+   ```
+   pip install MetaTrader5 pyyaml
+   python tools/export_bars/export_bars_g8.py              # tudo que falta
+   python tools/export_bars/export_bars_g8.py --tfs M30,H1 --overwrite
+   ```
+   O segundo comando é o da pendência atual: refazer só M30/H1 desde 2021.
+   Com o terminal MT5 aberto e logado na conta certa, é só isso. Se der
+   `FALHA` em algum par×TF, rode de novo (sem `--overwrite`) até zerar —
+   o histórico baixa aos poucos. Ele nunca toca nos `golden_*.csv`.
+
+## Passo a passo do script MQL5 (não precisa saber programar)
 
 1. **Abra o MetaEditor:** no MetaTrader 5, aperte `F4` (ou menu Ferramentas →
    Editor de Linguagem MetaQuotes).
