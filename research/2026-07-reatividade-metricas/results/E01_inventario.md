@@ -21,20 +21,20 @@ normalizados por par (💡 senão os pares mais líquidos dominariam a média).
 
 ## Resultados
 
-**Export:** server_time=2026.07.16 00:47:26 | gmt_time=2026.07.15 21:47:26 | offset_server_gmt_h=3.0 · **56 arquivo(s) em esquema legado** (coluna `time`, export anterior; TFs: H1, M30) — mesmos dados OHLCV, hora do servidor igual
+**Export:** server_time=2026.07.16 06:43:31 | gmt_time=2026.07.16 03:43:31 | offset_server_gmt_h=3.0
 
 | TF | arquivos | linhas (mín–máx) | cobre início | cobre fim | buracos ≤3 (viram NaN) | buracos >3 globais (fechamento) | buracos >3 específicos | linhas inválidas |
 |---|---|---|---|---|---|---|---|---|
 | M5 | 28 | 147545–148587 | 28/28 | 28/28 | 418 | 392 em 14 janela(s) | 62 | 0 |
 | M15 | 28 | 49199–49543 | 28/28 | 28/28 | 173 | 308 em 11 janela(s) | 5 | 0 |
-| M30 | 28 | 55613–56232 | 0/28 | 28/28 | 116 | 280 em 10 janela(s) | 8 | 0 |
-| H1 | 28 | 27818–28122 | 0/28 | 28/28 | 63 | 251 em 9 janela(s) | 6 | 0 |
+| M30 | 28 | 67689–68308 | 28/28 | 28/28 | 228 | 280 em 10 janela(s) | 8 | 0 |
+| H1 | 28 | 33858–34162 | 28/28 | 28/28 | 119 | 251 em 9 janela(s) | 6 | 0 |
 | H4 | 28 | 8486–8554 | 28/28 | 28/28 | 65 | 112 em 4 janela(s) | 23 | 0 |
 | D1 | 28 | 1421–1429 | 28/28 | 28/28 | 89 | 0 em 0 janela(s) | 0 | 0 |
 | W1 | 28 | 545–548 | 28/28 | 28/28 | 0 | 0 em 0 janela(s) | 0 | 0 |
 | MN1 | 28 | 126–126 | 28/28 | 28/28 | 0 | 0 em 0 janela(s) | 0 | 0 |
 
-**Leitura:** cada linha resume um timeframe: quantos pares chegaram, se o histórico cobre o período pedido no config.yaml e quantos buracos existem fora de fim de semana. Buracos >3 barras NÃO bloqueiam o E2: viram janelas de exclusão (regra congelada no PLANO §7), gravadas em E01_janelas_excluidas.csv. Bloqueia = arquivo ausente, período não coberto ou linha inválida; aqui há 2 pendência(s) desse tipo, detalhadas abaixo.
+**Leitura:** cada linha resume um timeframe: quantos pares chegaram, se o histórico cobre o período pedido no config.yaml e quantos buracos existem fora de fim de semana. Buracos >3 barras NÃO bloqueiam o E2: viram janelas de exclusão (regra congelada no PLANO §7), gravadas em E01_janelas_excluidas.csv. Bloqueia = arquivo ausente, período não coberto ou linha inválida; **nada disso ocorre — cobertura aprovada.**
 
 ### Janelas de fechamento global (mercado/feed parado para todos)
 
@@ -116,19 +116,18 @@ normalizados por par (💡 senão os pares mais líquidos dominariam a média).
 
 ### Pendências
 
-- M30: 28 par(es) não cobrem o início do período esperado — config pede 2021-01-01, primeira barra disponível é 2022-01-03 00:00:00 (ação 👤: reexportar este TF no MT5 desde 2021-01-01; se os arquivos antigos estiverem na pasta do export, apagá-los antes, senão o ExportBarsG8 os pula)
-- H1: 28 par(es) não cobrem o início do período esperado — config pede 2021-01-01, primeira barra disponível é 2022-01-03 00:00:00 (ação 👤: reexportar este TF no MT5 desde 2021-01-01; se os arquivos antigos estiverem na pasta do export, apagá-los antes, senão o ExportBarsG8 os pula)
+_Nenhuma._
 
 ## Confronto com os critérios
 
 O E1 não tem critério C próprio; os limiares usados antecipam o **C3** (banco aprovado):
 buracos ≤ 3 barras viram NaN e a taxa de NaN por TF×ano será
 cobrada no E4 (≤ 15%). Situação:
-✘ pendências listadas acima — resolver (reexportar/registrar exclusões) antes do E2.
+✔ sem buracos críticos nem arquivos ausentes — dados liberados para o E2.
 
 ## O que isso muda
 
-O E2 só começa depois de reexportar os itens pendentes ou registrar as exclusões como limitação.
+O pipeline Python (E2) pode rodar sobre estes dados.
 A figura de sessões alimenta o congelamento das janelas de sessão em hora do servidor
 (config.yaml → sessions.calibracao_server).
 

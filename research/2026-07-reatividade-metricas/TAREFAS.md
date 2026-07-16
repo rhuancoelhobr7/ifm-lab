@@ -17,11 +17,11 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Script MQL5 tools/export_bars/ escrito e documentado (8 TFs: M5…MN) (tools/export_bars/ExportBarsG8.mq5, tools/export_bars/README.md)
 - [x] Script de inventário pronto para rodar sobre os CSVs (scripts/e01_inventario.py)
 - [x] 👤 Export rodado no MT5, CSVs em data/raw/ (data/raw/_manifest.csv)
-- [!] Inventário de cobertura sem buracos críticos (bloqueada: reexport de 2026-07-15 veio de OUTRO servidor — Upcomers, histórico só desde 2026-01-12, sem EURUSD/GBPUSD/USDJPY — decisão de fonte de dados 👤 no PROGRESS.md; export MetaQuotes-Demo recuperável do commit b7f19a8; relatório do export original em results/E01_inventario.md)
+- [x] Inventário de cobertura sem buracos críticos (results/E01_inventario.md)
 ### E2 — Pipeline Python
 - [x] Cadeia IFM Light → S → derivadas implementada (config.yaml, sem hard-code, incl. W1/MN) (scripts/ifm_metrics, scripts/e02_gerar_metricas.py)
 - [x] Testes unitários com fixtures sintéticas verdes (pytest) (tests)
-- [!] Parquet de métricas M30–D1 + W1/MN gerado (bloqueada: aguarda a decisão de fonte de dados 👤 do PROGRESS.md; orquestrador pronto e testado ponta a ponta em sintético — scripts/e02_gerar_metricas.py)
+- [x] Parquet de métricas M30–D1 + W1/MN gerado (scripts/e02_gerar_metricas.py, PROGRESS.md)
 ### E3 — Paridade · PORTÃO P1
 - [ ] 👤 Export do replay do indicador entregue
 - [ ] Relatório results/E03_paridade.md no formato checklist C1

@@ -6,7 +6,7 @@
 
 ## Onde estamos
 
-**Etapa atual:** decisão de dados RESOLVIDA (MetaQuotes-Demo; ver decisões) — `data/raw/` restaurado do commit `b7f19a8` (229 arquivos, golden + server_meta de volta). Falta só o **reexport M30/H1 desde 2021** (👤 no MT5, com o ExportBarsG8 v1.10) → rodar `e01_inventario.py` de novo → fechar E1 → `e02_gerar_metricas.py` (código do E2 já pronto, 34 testes verdes).
+**Etapa atual:** **E1 e E2 CONCLUÍDAS (2026-07-16).** Reexport v2.00 do usuário aprovado no inventário (cobertura 28/28 nos 8 TFs, zero linhas inválidas); parquet de métricas M30–D1 + W1/MN gerado (hash de config `2bbc928fa01e`; abertos+selados cortados fisicamente: M30 59065+9245, H1 29539+4624, H4 7395+1159, D1 1235+194, W1 508+40, MN1 116+10, zMov 59327+9265). Próximo: **E3 — paridade (portão P1)**, usando os `golden_*.csv` (falta o Rhuan confirmar formato/origem).
 
 **⚠️ 2026-07-15 (noite) — o reexport recebido NÃO serve para o plano congelado.** O commit `1465b92` substituiu o `data/raw/` por um export de **outro servidor** (`Upcomers-Server`, antes `MetaQuotes-Demo`) com três problemas fatais: (1) **histórico só desde 2026-01-12** em TODOS os TFs (~6 meses; o config exige 2016/2021/2024 — treino, validação e teste selado ficam impossíveis); (2) **faltam EURUSD, GBPUSD e USDJPY** (o manifest nem os tentou — provável sufixo/ausência no Market Watch do broker novo; sem os majors não há cesta de 7 pares por moeda e o painel G8 quebra); (3) **offset GMT+2 em pleno julho** (MetaQuotes era +3 no verão) — outro regime de fuso, que invalidaria a calibração de sessões congelada. Além disso a substituição **apagou os `golden_*.csv`** (insumo da paridade E3) **e o `server_meta.csv`**. Nada está perdido: o export MetaQuotes-Demo completo (229 arquivos) é recuperável do commit `b7f19a8`.
 
@@ -28,6 +28,8 @@
 2. **O VETO usa VEL com k=6 fixo** (`MetVel(sr6H4, 6)`, linha ~1146), não `InpMetVelK` — coincidem no default, divergiriam se o input mudasse. Reproduzido fielmente.
 3. Divergência deliberada e documentada no zMov/zHist: o fonte alinha "dia i" por contagem de barras D1 de cada par; o pipeline alinha por data de calendário (mais conservador; NaN onde um par pula um dia). Conferir no E3 se algum desvio de paridade cai nesses dias (docstring de `scripts/ifm_metrics/daymove.py`).
 
+**2026-07-16 — data/raw definitivo: proveniência HÍBRIDA, documentada no próprio _manifest.csv.** O reexport v2.00 (MetaQuotes-Demo, GMT+3) é a fonte de TUDO exceto M5: o broker encurtou o histórico M5 do lado do servidor (só serve desde ~2025-03; as 28 linhas `ok_parcial_*` do manifest). Os 28 `*_M5.csv` continuam sendo os do export v1.00 (`b7f19a8`, cobrem 2024-07-01→2026-06-30 exatamente como o config exige; manifest preservado em `_manifest_export_v100.csv`). Lição registrada: histórico M5 de broker é perecível — não apagar o data/raw versionado.
+
 **2026-07-15 — Fonte de dados: MetaQuotes-Demo (decidido por Rhuan).** Rhuan optou pela via recomendada — descartou o export Upcomers e voltou a exportar na conta MetaQuotes-Demo (reexport em andamento quando o script v1.00 travou no W1; corrigido no v1.10 com fatias anuais). `data/raw/` restaurado do commit `b7f19a8` na íntegra. Pendência residual: só o reexport M30/H1 desde 2021-01-01.
 
 ## Decisões de portão (P1–P4)
@@ -38,6 +40,9 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 
 ## Pendências que dependem do usuário (👤)
 
+- **Confirmar formato/origem dos `golden_*.csv`** (Rhuan): são o export do replay do indicador? Gerados como/quando? É o insumo do E3 (paridade, portão P1) — a comparação Python × painel só é confiável sabendo exatamente o que cada coluna significa e de qual versão/parâmetros do indicador saiu.
+
+- ~~Export completo do zero~~ CONCLUÍDO em 2026-07-16 (ver decisões). Instruções originais mantidas para referência:
 - **Export completo do zero (Rhuan, no MT5, conta MetaQuotes-Demo):** recompilar o `ExportBarsG8.mq5` **v2.00** (F7) e rodar com os defaults (sobrescreve tudo). O v2.00 separa SINCRONIZAÇÃO (espera o download do histórico profundo, com progresso visível e paciência de 5 min/série — a causa-raiz das falhas do v1.00/v1.10 com cache frio pós-troca de servidor) da CÓPIA (fatias anuais). Interrompeu? Rodar de novo com `Pular arquivos = true` retoma. Ao final: copiar a pasta para `data/raw/` (os golden_*/server_meta não são tocados) e comparar o novo export com o restaurado de `b7f19a8` antes de substituir em definitivo.
 - **Confirmar com o Rhuan o formato/origem dos `golden_*.csv`** (export do replay do indicador, insumo da paridade E3) — restaurados junto com o data/raw.
 
@@ -53,13 +58,10 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 | 2026-07-15 | Ferramenta (Claude/Rhuan) | Exportador Python `tools/export_bars/export_bars_g8.py` (API MetaTrader5, Windows): mesmos CSVs/manifest do .mq5, escrita direta em data/raw/, e **trava de servidor** — recusa conta ≠ `mt5.conta_servidor` do config (previne repetir o reexport reprovado). Uso para a pendência: `--tfs M30,H1 --overwrite` na conta MetaQuotes-Demo. | (este commit) |
 | 2026-07-15 | Correção + restauração (Claude/Rhuan) | Rhuan decidiu a fonte de dados (MetaQuotes-Demo); `data/raw/` restaurado de `b7f19a8` (229 arquivos, golden de volta). ExportBarsG8 **v1.10**: CopyRates em fatias anuais + log de vida — corrige o travamento em 7/224 (bloqueio do CopyRates no W1 pedindo 2016→2026 de uma vez). Exportador Python descartado para uso local (Rhuan está no Linux; pacote MetaTrader5 é Windows-only) — fica para o colaborador se útil. | (este commit) |
 | 2026-07-15 | ExportBarsG8 v2.00 (Claude) | v1.10 seguiu falhando (cache de histórico frio pós-troca de servidor; 20s de espera por fatia era pouco). v2.00 reescrito em duas fases: SINCRONIZA (cutuca o download via CopyTime e espera até 5 min/série com progresso na tela; aceita parcial explícito se o broker não tiver o fundo) → COPIA (fatias anuais). Defaults agora exportam TUDO do zero; `Pular arquivos = true` vira modo retomada. | (este commit) |
+| 2026-07-16 | E1-fecho + E2-fecho (Claude/Rhuan) | Reexport v2.00 recebido (196 ok + 28 M5 parciais → mantidos os M5 do v1.00; proveniência híbrida anotada no _manifest). Inventário verde: 28/28 nos 8 TFs, M30/H1 desde 2021-01-04, zero inválidas; venv da pesquisa criado via uv. Parquet de métricas gerado (hash 2bbc928fa01e). E1 e E2 fechadas no TAREFAS. | (este commit) |
 
 ## Próxima etapa
 
-O que o inventário encontrou (2026-07-15):
+**E3 — Verificação de paridade (PORTÃO P1).** Insumo: `data/raw/golden_*.csv` (export do replay do indicador). Passos: (1) 👤 Rhuan confirma formato/origem dos golden (qual versão do indicador, quais parâmetros, o que é cada coluna/shift); (2) comparar ponto a ponto com o Python (`golden_strength` × força S; `golden_metrics` × derivadas; `golden_ifm_pairs` × IFM Light por par); (3) relatório `results/E03_paridade.md` no formato checklist do critério C1; (4) 🚪 P1 carimbado por Rhuan ou Léo. Só depois do P1: extensão M5/M15 do parquet e E4 (gabarito + banco).
 
-- **Cobertura:** 28 arquivos em todos os 8 TFs, sem linha inválida, sem duplicata. M5/M15/D1/W1/MN cobrem os períodos pedidos. H4 cobre (1ª barra 2021-01-04 = primeiro pregão do ano; 01/01/2021 caiu numa sexta de feriado). **M30/H1 NÃO cobrem** — export legado desde 2022-01-03 (pendência 👤 acima).
-- **Buracos >3 barras:** quase todos são **fechamentos globais** (Natal, Ano-Novo, quedas de feed — os 28 pares apagam juntos) ou feriados em que os pares param em minutos diferentes; viram janelas de exclusão em `results/E01_janelas_excluidas.csv` (regra do PLANO §7), não defeito. Caso a vigiar: **GBPNZD** tem os maiores buracos individuais (ex.: 2 dias inteiros em 2025-09-29→10-01).
-- Os `golden_*.csv` seguem aguardando confirmação de formato/origem com o Rhuan (insumo do E3).
-
-Ordem real: (1) 👤 decidir a fonte de dados — restaurar `b7f19a8` e reexportar M30/H1 de 2021 na conta MetaQuotes-Demo; (2) rodar `e01_inventario.py` de novo e fechar E1; (3) rodar `python scripts/e02_gerar_metricas.py` (a parte de código do E2 já está pronta e testada — 34 testes verdes; o parquet sai em minutos quando os dados chegarem) e fechar E2; (4) E3 — paridade contra o replay (`golden_*.csv`, também recuperáveis de `b7f19a8`; confirmar formato com o Rhuan).
+Notas do inventário de 2026-07-16 (reexport v2.00 + M5 do v1.00): cobertura 28/28 nos 8 TFs, zero linhas inválidas; buracos grandes = fechamentos globais em janelas de exclusão (`results/E01_janelas_excluidas.csv`); GBPNZD segue como o par com mais buracos individuais (a vigiar no E4).
