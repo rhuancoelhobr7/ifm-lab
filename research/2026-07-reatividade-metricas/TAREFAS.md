@@ -3,7 +3,7 @@
 Legenda: [ ] pendente · [~] em andamento · [x] concluída (evidência) · [!] bloqueada (motivo) · [-] cancelada (motivo)
 Regras: checkbox só marca com evidência · portões P1–P4 só marcam com decisão do usuário no PROGRESS.md
 Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências + portões + template didático §1.2)
-Última atualização: 2026-07-16 · sessão E4b (banco-mãe — claude de Carlos Eduardo)
+Última atualização: 2026-07-16 · sessão E7 (contexto/conflito + corrida/cascata — claude de Rhuan)
 
 ## BLOCO A — Fundação
 ### E0 — Setup
@@ -54,11 +54,11 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Veredito do VETO (ajuda / enfeite / atrapalha) + versão graduada testada (results/E06_posdisparo.md)
 - [x] results/E06_*.md + entradas candidatas a LEITURA.md (results/E06_limiares.md, results/E06_posdisparo.md)
 ### E7 — Conflitos e hierarquia de TFs (Q5+Q6)
-- [ ] Efeito do contexto MN/W1/D1 sobre detecção intraday (C7)
-- [ ] Conflito precoce como sinal testado
-- [ ] Corrida entre TFs de detecção + concordância em cascata MN→M5
-- [ ] Camadas descartadas/mantidas via C9
-- [ ] results/E07_*.md + entradas candidatas a LEITURA.md
+- [x] Efeito do contexto MN/W1/D1 sobre detecção intraday (C7) (results/E07_contexto.md, scripts/e07_contexto.py)
+- [x] Conflito precoce como sinal testado (results/E07_contexto.md)
+- [x] Corrida entre TFs de detecção + concordância em cascata MN→M5 (results/E07_cascata.md, scripts/e07_cascata.py)
+- [x] Camadas descartadas/mantidas via C9 (results/E07_cascata.md)
+- [x] results/E07_*.md + entradas candidatas a LEITURA.md (results/E07_contexto.md, results/E07_cascata.md)
 ### E8 — Persistência e ciclos de sessão (Q8+Q9)
 - [ ] Vida restante pós-disparo + custo do atraso do trader
 - [ ] Half-life de S por moeda × TF de detecção

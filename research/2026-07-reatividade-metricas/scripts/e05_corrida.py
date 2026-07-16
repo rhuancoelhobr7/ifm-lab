@@ -66,13 +66,18 @@ def sinal_e_forca(df: pd.DataFrame, met: str) -> tuple[pd.Series, pd.Series]:
 
 
 def quatro_notas(df: pd.DataFrame, met: str, thr: float, util_pct: float,
-                 detalhe: bool = False):
+                 detalhe: bool = False, filtro: np.ndarray | None = None):
     """Notas por split: latência/consumido/captura por evento + falsos/precisão.
 
     detalhe=True: devolve também o frame por-evento (1º disparo válido) com
-    moeda/âncora/latência/consumido — usado pelo E6 para recortes por sessão."""
+    moeda/âncora/latência/consumido — usado pelo E6 para recortes por sessão.
+    filtro: máscara booleana opcional (alinhada ao df) exigida JUNTO com o
+    limiar — o estado composto (ligado E filtro) é que gera os cruzamentos;
+    usado pelo E7 para as camadas de contexto da cascata MN→M5."""
     dirs, forca = sinal_e_forca(df, met)
     ligado = (forca >= thr) & (dirs != 0)
+    if filtro is not None:
+        ligado = ligado & filtro
     # cruzamentos por moeda (estado assinado muda para "ligado")
     estado = np.where(ligado, dirs, 0.0)
     prev = pd.Series(estado).groupby(df["moeda"].to_numpy()).shift(1)
