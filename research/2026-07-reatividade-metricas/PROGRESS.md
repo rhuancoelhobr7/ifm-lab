@@ -38,7 +38,7 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 
 ## Pendências que dependem do usuário (👤)
 
-- **Reexport M30/H1 desde 2021 (Rhuan, no MT5, conta MetaQuotes-Demo):** recompilar o `ExportBarsG8.mq5` **v1.10** (F7), rodar com `TFs a exportar = "M30,H1"` e `Pular arquivos que ja existem = false`; copiar os 56 CSVs resultantes para `data/raw/` por cima dos atuais. O v1.10 corrige o travamento do v1.00 (CopyRates bloqueava em faixas longas de histórico profundo — agora pede em fatias anuais e loga o progresso no diário).
+- **Export completo do zero (Rhuan, no MT5, conta MetaQuotes-Demo):** recompilar o `ExportBarsG8.mq5` **v2.00** (F7) e rodar com os defaults (sobrescreve tudo). O v2.00 separa SINCRONIZAÇÃO (espera o download do histórico profundo, com progresso visível e paciência de 5 min/série — a causa-raiz das falhas do v1.00/v1.10 com cache frio pós-troca de servidor) da CÓPIA (fatias anuais). Interrompeu? Rodar de novo com `Pular arquivos = true` retoma. Ao final: copiar a pasta para `data/raw/` (os golden_*/server_meta não são tocados) e comparar o novo export com o restaurado de `b7f19a8` antes de substituir em definitivo.
 - **Confirmar com o Rhuan o formato/origem dos `golden_*.csv`** (export do replay do indicador, insumo da paridade E3) — restaurados junto com o data/raw.
 
 ## Log de sessões
@@ -52,6 +52,7 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 | 2026-07-15 | E2 (pipeline + testes — Léo) | Cadeia completa do painel em Python (`scripts/ifm_metrics/`: IFM Light, S, cesta, vel/acel/zvel, zS, mtf/VETO/candidata/rank H1, zMov/zHist) + orquestrador `e02_gerar_metricas.py` (cache por hash, trava de proveniência, corte físico do selado já no estágio de métricas). 34 testes verdes: fixtures à mão + vetorizado × porta de referência (tradução literal do MQL5, `reference.py`) + ponta a ponta em raw sintético. Parquet real aguarda a decisão de dados. | (este commit) |
 | 2026-07-15 | Ferramenta (Claude/Rhuan) | Exportador Python `tools/export_bars/export_bars_g8.py` (API MetaTrader5, Windows): mesmos CSVs/manifest do .mq5, escrita direta em data/raw/, e **trava de servidor** — recusa conta ≠ `mt5.conta_servidor` do config (previne repetir o reexport reprovado). Uso para a pendência: `--tfs M30,H1 --overwrite` na conta MetaQuotes-Demo. | (este commit) |
 | 2026-07-15 | Correção + restauração (Claude/Rhuan) | Rhuan decidiu a fonte de dados (MetaQuotes-Demo); `data/raw/` restaurado de `b7f19a8` (229 arquivos, golden de volta). ExportBarsG8 **v1.10**: CopyRates em fatias anuais + log de vida — corrige o travamento em 7/224 (bloqueio do CopyRates no W1 pedindo 2016→2026 de uma vez). Exportador Python descartado para uso local (Rhuan está no Linux; pacote MetaTrader5 é Windows-only) — fica para o colaborador se útil. | (este commit) |
+| 2026-07-15 | ExportBarsG8 v2.00 (Claude) | v1.10 seguiu falhando (cache de histórico frio pós-troca de servidor; 20s de espera por fatia era pouco). v2.00 reescrito em duas fases: SINCRONIZA (cutuca o download via CopyTime e espera até 5 min/série com progresso na tela; aceita parcial explícito se o broker não tiver o fundo) → COPIA (fatias anuais). Defaults agora exportam TUDO do zero; `Pular arquivos = true` vira modo retomada. | (este commit) |
 
 ## Próxima etapa
 

@@ -49,12 +49,16 @@ Há dois exportadores equivalentes (mesmos CSVs, mesmo `_manifest.csv`):
    ache `ExportBarsG8` no Navegador (`Ctrl+N`, seção Scripts) e **arraste para o
    gráfico**. Vai abrir a janela de parâmetros — os valores padrão já são os da
    pesquisa (períodos por camada de TF). Clique OK.
-6. **Aguarde.** O progresso aparece no canto superior esquerdo do gráfico
-   (`12/224 EURUSD H1 ...`) e no diário (aba "Especialistas"). A primeira rodada
-   pode demorar: o MT5 baixa histórico aos poucos.
+6. **Aguarde.** O v2.00 trabalha em duas fases por série: primeiro **sincroniza**
+   o histórico (o texto no gráfico mostra "sincronizando EURUSD W1 — 1ª barra
+   local: ... | alvo: 2016.01.01 | restam Ns") e só depois **copia**. Com o
+   cache de histórico frio (primeira vez, ou depois de trocar de servidor), a
+   fase de sincronização é demorada — é o download acontecendo, não travamento.
 7. **Se houver FALHAS** (o resumo final no diário diz quantas): **rode o script
-   de novo**, com o parâmetro "Pular arquivos que ja existem" = `true` (padrão).
-   Ele só refaz o que faltou. Repita até o resumo dizer `0 falhas`.
+   de novo com "Pular arquivos que ja existem" = `true`** — ele retoma só o que
+   faltou. Repita até o resumo dizer `0 falhas`. Séries marcadas `ok_parcial_*`
+   no manifest significam que o broker não tem histórico até o início pedido —
+   o inventário (e01) reporta a cobertura real.
 8. **Pegue os arquivos:** no MetaTrader, Arquivo → **Abrir Pasta de Dados** →
    pasta `MQL5` → `Files` → `IFM_export`. Lá estão os 224 CSVs + `_manifest.csv`.
 9. **Copie tudo** (incluindo o `_manifest.csv`) para:
@@ -76,7 +80,8 @@ Há dois exportadores equivalentes (mesmos CSVs, mesmo `_manifest.csv`):
 | Fim | 2026-06-30 | Comum a todos os TFs |
 | TFs a exportar | M5…MN1 | Pode reduzir para reexportar um TF específico |
 | Subpasta | IFM_export | Dentro de MQL5\Files |
-| Pular arquivos que ja existem | true | Rodadas seguintes só completam o que falta |
+| Pular arquivos que ja existem | **false** | Default = exporta tudo do zero; mude para `true` para RETOMAR uma rodada interrompida |
+| Paciencia p/ baixar historico | 300 s | Tempo máximo de sincronização por série antes de aceitar parcial/falhar |
 
 ## Formato dos CSVs
 
