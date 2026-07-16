@@ -66,10 +66,10 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Relógio das sessões (nascimento/morte de tendências) + sazonalidade (results/E08_sessoes.md)
 - [x] results/E08_*.md + entradas candidatas a LEITURA.md (results/E08_sessoes.md)
 ### E9 — Quadrantes e combinações dirigidas (Q4 camadas 1–2)
-- [ ] Tabela 2×2 zS × zvel por TF × sessão (quatro notas)
-- [ ] Duplas/trios nomeados testados (sob C11)
-- [ ] Melhor combinação vs. melhor métrica solo confrontadas
-- [ ] results/E09_*.md + entradas candidatas a LEITURA.md
+- [x] Tabela 2×2 zS × zvel por TF × sessão (quatro notas) (results/E09_combos.md, results/E09_combos.csv)
+- [x] Duplas/trios nomeados testados (sob C11) (results/E09_combos.md)
+- [x] Melhor combinação vs. melhor métrica solo confrontadas (results/E09_combos.md)
+- [x] results/E09_*.md + entradas candidatas a LEITURA.md (results/E09_combos.md)
 
 ## BLOCO D — Síntese
 ### E10 — Redundância, importância e Score detector (Q11)

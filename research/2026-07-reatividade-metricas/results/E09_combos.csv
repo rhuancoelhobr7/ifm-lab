@@ -1,0 +1,45 @@
+tf,combo,split,n_eventos,deteccao_pct,lat_mediana_min,lat_ic95,consumido_mediano_pct,captura_mediana_pct,precisao_pct,falsos_por_semana
+M30,Q_nivel_e_evidencia,treino,284,63.0,60.0,"[60,90]",19.3,80.7,2.4,10.01
+M30,Q_nivel_e_evidencia,validacao,39,53.8,90.0,"[60,120]",20.7,79.3,1.6,9.45
+M30,Q_so_nivel,treino,284,87.0,30.0,"[30,60]",11.3,88.7,2.3,41.36
+M30,Q_so_nivel,validacao,39,82.1,30.0,"[0,30]",8.6,91.4,1.7,39.14
+M30,Q_so_evidencia,treino,284,9.9,90.0,"[60,120]",13.6,86.4,0.3,6.34
+M30,Q_so_evidencia,validacao,39,7.7,90.0,—,17.1,82.9,0.2,5.78
+M30,nivel_com_evidencia,treino,284,63.0,60.0,"[60,90]",19.3,80.7,2.4,10.01
+M30,nivel_com_evidencia,validacao,39,53.8,90.0,"[60,120]",20.7,79.3,1.6,9.45
+M30,arrancada_com_adesao,treino,284,1.1,30.0,—,32.6,67.4,3.6,0.11
+M30,arrancada_com_adesao,validacao,39,2.6,120.0,—,35.3,64.7,3.6,0.08
+M30,nivel_com_adesao,treino,284,91.2,30.0,"[30,30]",11.1,88.9,2.1,41.37
+M30,nivel_com_adesao,validacao,39,79.5,30.0,"[0,30]",8.6,91.4,1.5,38.9
+M30,trio_completo,treino,284,63.0,60.0,"[60,90]",19.3,80.7,2.4,10.0
+M30,trio_completo,validacao,39,53.8,90.0,"[60,120]",20.7,79.3,1.6,9.43
+M30,evidencia_dia_atipico,treino,284,3.9,60.0,"[30,60]",17.8,82.2,4.0,0.31
+M30,evidencia_dia_atipico,validacao,39,0.0,,—,,,1.1,0.28
+M30,nivel_cedo,treino,284,80.6,30.0,"[30,30]",10.6,89.4,1.6,23.22
+M30,nivel_cedo,validacao,39,69.2,0.0,"[0,30]",6.7,93.3,1.1,21.86
+M30,nivel_adesao_cedo,treino,284,80.3,30.0,"[30,30]",10.6,89.4,1.7,21.88
+M30,nivel_adesao_cedo,validacao,39,66.7,15.0,"[0,30]",7.6,92.4,1.1,20.22
+M30,solo_zs_1.0 (referência),treino,284,91.2,30.0,"[30,30]",10.8,89.2,2.0,43.5
+M30,solo_zs_1.0 (referência),validacao,39,82.1,15.0,"[0,30]",8.2,91.8,1.5,41.26
+H1,Q_nivel_e_evidencia,treino,284,47.2,210.0,"[157,225]",29.4,70.6,3.6,4.88
+H1,Q_nivel_e_evidencia,validacao,39,46.2,135.0,"[75,180]",26.1,73.9,3.2,4.67
+H1,Q_so_nivel,treino,284,79.6,90.0,"[60,90]",15.4,84.6,2.4,20.35
+H1,Q_so_nivel,validacao,39,71.8,90.0,"[30,270]",19.2,80.8,1.7,19.98
+H1,Q_so_evidencia,treino,284,8.8,90.0,"[30,150]",15.2,84.8,0.6,3.13
+H1,Q_so_evidencia,validacao,39,5.1,75.0,—,12.4,87.6,0.2,3.09
+H1,nivel_com_evidencia,treino,284,47.2,210.0,"[157,225]",29.4,70.6,3.6,4.88
+H1,nivel_com_evidencia,validacao,39,46.2,135.0,"[75,180]",26.1,73.9,3.2,4.67
+H1,arrancada_com_adesao,treino,284,0.0,,—,,,2.8,0.04
+H1,arrancada_com_adesao,validacao,39,0.0,,—,,,0.0,0.04
+H1,nivel_com_adesao,treino,284,82.4,60.0,"[60,90]",16.3,83.7,2.1,20.24
+H1,nivel_com_adesao,validacao,39,76.9,75.0,"[30,120]",15.2,84.8,1.4,19.68
+H1,trio_completo,treino,284,47.2,210.0,"[157,225]",29.4,70.6,3.6,4.88
+H1,trio_completo,validacao,39,46.2,135.0,"[75,180]",26.1,73.9,3.2,4.67
+H1,evidencia_dia_atipico,treino,284,1.8,240.0,"[60,300]",27.2,72.8,4.6,0.14
+H1,evidencia_dia_atipico,validacao,39,0.0,,—,,,0.0,0.15
+H1,nivel_cedo,treino,284,65.1,60.0,"[30,60]",12.7,87.3,1.7,12.25
+H1,nivel_cedo,validacao,39,51.3,45.0,"[30,90]",11.8,88.2,1.2,11.81
+H1,nivel_adesao_cedo,treino,284,65.1,60.0,"[30,60]",13.0,87.0,1.8,11.55
+H1,nivel_adesao_cedo,validacao,39,51.3,75.0,"[30,120]",11.8,88.2,1.3,11.05
+H1,solo_zs_1.0 (referência),treino,284,83.1,60.0,"[60,90]",15.7,84.3,2.0,21.3
+H1,solo_zs_1.0 (referência),validacao,39,76.9,75.0,"[30,120]",15.2,84.8,1.4,20.75
