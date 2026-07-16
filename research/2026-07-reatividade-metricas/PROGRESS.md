@@ -6,7 +6,7 @@
 
 ## Onde estamos
 
-**Etapa atual:** **🚪 P2a CARIMBADO (2026-07-16, Carlos Eduardo) — âncora A-ROMPIMENTO congelada.** Gabarito aprovado na auditoria C2 (20/20): **323 eventos** (284 treino + 39 validação; selado intocado) em `results/E04_eventos.csv`, régua M30 uniforme. **Próxima sessão (Rhuan): E4b — banco de estados**: métricas t0 (parquet hash `763beb9d23a1`) + contexto MN→M5 última barra fechada + sessão/minutos-da-sessão + alvos intraday A1–A3, ligado ao gabarito pela âncora A-rompimento; splits físicos treino/validação/`data/sealed/`; relatório de sanidade `results/E04b_auditoria.md` (critério C3) → auditoria C3 👤 (P2b). Depois do P2b: extensão M5/M15 e E5.
+**Etapa atual:** **E4b PRONTA — 🚪 auditoria C3 aguardando o dono da pesquisa (P2b).** Banco-mãe construído (2026-07-16): M30 e H1, linha = (t, moeda) com métricas t0, contexto MN1→M30 por última barra fechada, sessão/minutos/DST, vínculo ao gabarito pela âncora **A-rompimento** e alvos A1–A3 (30/60/120/240 min + fim de sessão + fim de dia). Splits físicos gravados (M30: 398k treino + 74k validação + 74k selado; H1: 199k+37k+37k; gabarito do selado vazio até o E11). Sanidade automatizável do C3 fechada: NaN pior 6.0% ≤ 15% ✔; A2 recomputado dos CSVs crus 20/20 ✔; contexto sem look-ahead ✔. **Falta 👤:** auditar as 20 linhas de `results/E04b_20linhas.csv` → P2b. Reprodutibilidade: parquet local do Carlos Eduardo saiu com o MESMO hash do Rhuan (`763beb9d23a1`).
 
 **⚠️ 2026-07-15 (noite) — o reexport recebido NÃO serve para o plano congelado.** O commit `1465b92` substituiu o `data/raw/` por um export de **outro servidor** (`Upcomers-Server`, antes `MetaQuotes-Demo`) com três problemas fatais: (1) **histórico só desde 2026-01-12** em TODOS os TFs (~6 meses; o config exige 2016/2021/2024 — treino, validação e teste selado ficam impossíveis); (2) **faltam EURUSD, GBPUSD e USDJPY** (o manifest nem os tentou — provável sufixo/ausência no Market Watch do broker novo; sem os majors não há cesta de 7 pares por moeda e o painel G8 quebra); (3) **offset GMT+2 em pleno julho** (MetaQuotes era +3 no verão) — outro regime de fuso, que invalidaria a calibração de sessões congelada. Além disso a substituição **apagou os `golden_*.csv`** (insumo da paridade E3) **e o `server_meta.csv`**. Nada está perdido: o export MetaQuotes-Demo completo (229 arquivos) é recuperável do commit `b7f19a8`.
 
@@ -52,7 +52,7 @@ A calculadora Python é oficialmente a régua da pesquisa. Liberados: extensão 
 
 ## Pendências que dependem do usuário (👤)
 
-_Nenhuma no momento. A próxima participação 👤 é a auditoria C3 do banco-mãe (P2b), quando o E4b estiver pronto._
+- **🚪 Auditoria C3 do banco-mãe (P2b) — Carlos Eduardo ou Rhuan:** abrir `results/E04b_20linhas.csv` (20 linhas sorteadas do banco M30+H1) e conferir contra o replay do painel no MT5 (ou contra os gráficos): o S/zvel/zS/cesta da linha condizem com o painel naquele instante? A sessão/minutos batem com o relógio? O vínculo de gabarito (gab_ancora/gab_evento) confere com `results/E04_eventos.csv`? Sem discrepância → registrar aqui QUEM aprovou → P2b carimbado; liberam-se a extensão M5/M15 do banco e o **E5 — corrida de latências**.
 
 - ~~🚪 Auditoria C2 do gabarito (P2a)~~ FEITA por Carlos Eduardo em 2026-07-16 → P2a carimbado, âncora A-rompimento congelada (ver decisões de portão).
 
@@ -91,11 +91,18 @@ _Nenhuma no momento. A próxima participação 👤 é a auditoria C3 do banco-m
 | 2026-07-16 | E3 (diagnóstico golden v2.00) | v1.10 rodada na base do selado errada... corrigida; golden v2.00 (base 26/09) comparado: H1/H4/D1 + cadeia cruzada BIT-PERFEITOS; 2 focos diagnosticados (1 barra EURAUD no fio da navalha; zMov = dia anterior no vivo, confirmado com deslocamento 0.0 exato). Descobertas 4 e 5 registradas. | c31af46 |
 | 2026-07-16 | E3-fecho (Claude; decisões de Rhuan) | P1 CARIMBADO: ressalva M30 (âncora 26/09 22:30, 44 pontos) + bug-for-bug do zMov no daymove.py (34 testes verdes) → paridade 100% em todos os campos, erro máx 0.0000. Parquet estendido a M5/M15 (cache do e02 corrigido para ser por-TF). | 9983410 |
 | 2026-07-16 | E4a (gabarito — claude de Carlos Eduardo) | Régua M30 decidida (adendo P2a). `ifm_metrics/gabarito.py` + `e04a_gabarito.py`: dia Tóquio→NY em hora do servidor (DST europeu via IANA), caminho da cesta em ATRs, evento = magnitude ≥1 ATR + ≥6/7 pares + ER ≥0.30, âncoras A-20/10 e A-rompimento vetorizadas (8 testes à mão). **323 eventos** (284 treino, 39 validação; selado intocado), sensibilidade M15 medida (89% ≤1 candle M30), `results/E04a_gabarito.md` + `E04_eventos.csv` + 20 amostras plotadas. 42 testes verdes. Pendência 👤: auditoria C2. | e8b4a13 |
-| 2026-07-16 | P2a-carimbo (claude de Carlos Eduardo) | Auditoria C2 feita: 20/20 nas duas âncoras ("gostei de todas"); **A-rompimento escolhida** e congelada no config (`event.ancora_escolhida`). Repo deixado pronto para o Rhuan seguir no E4b (banco de estados → C3/P2b). | (este commit) |
+| 2026-07-16 | P2a-carimbo (claude de Carlos Eduardo) | Auditoria C2 feita: 20/20 nas duas âncoras ("gostei de todas"); **A-rompimento escolhida** e congelada no config (`event.ancora_escolhida`). Repo deixado pronto para o Rhuan seguir no E4b (banco de estados → C3/P2b). | 69d5434 |
+| 2026-07-16 | E4b (banco-mãe — claude de Carlos Eduardo) | Parquet local regenerado com o MESMO hash do Rhuan (`763beb9d23a1` — reprodutibilidade entre máquinas ✔). `e04b_banco.py`: banco M30+H1 (t×moeda) com métricas t0, contexto MN1→M30 asof última barra fechada, sessão/minutos/DST, gabarito A-rompimento e alvos A1–A3; splits físicos com selado gravado à parte (gabarito vazio até E11). C3 automatizável: NaN 6.0% ✔, A2 independente 20/20 ✔. `results/E04b_auditoria.md` + `E04b_20linhas.csv`. Pendência 👤: auditoria C3 (P2b). | (este commit) |
 
 ## Próxima etapa
 
+**Roteiro da próxima sessão:** (1) 👤 auditoria C3 das 20 linhas → carimbar P2b aqui; (2) extensão M5/M15 do banco (`e04b_banco.py` com TFS_BANCO ampliado + relatório de sanidade, mecânico); (3) **E5 — corrida de latências (portão P3)**: as quatro notas por métrica × TF × sessão contra o gabarito A-rompimento (bootstrap por dia, C11 nas varreduras), tabela-liga em `results/E05_corrida.md`. O banco já traz tudo que o E5 precisa: gab_ancora/gab_pos_ancora, sessão, alvos.
+
+<details><summary>E4b (concluída) — plano original</summary>
+
 **E4b — Banco de estados (Rhuan, próxima sessão).** P2a fechado; falta a segunda metade do E4: (1) tabela de estados — métricas t0 do parquet (hash `763beb9d23a1`) + contexto multi-TF MN→M5 com ÚLTIMA BARRA FECHADA (anti-look-ahead; `cross_tf.asof_ultima_fechada` já faz isso) + sessão/minutos-desde-abertura/flag DST + alvos intraday A1–A3 (config `targets`/`horizons`); (2) ligar ao gabarito por (moeda, dia) usando a âncora **A-rompimento** de `results/E04_eventos.csv`; (3) splits físicos treino/validação/`data/sealed/`; (4) `results/E04b_auditoria.md` no critério C3 (NaN ≤ 15% por TF×ano, 20 linhas para auditoria, alvos recomputados por caminho independente); (5) 👤 auditoria C3 → P2b. Insumos prontos: parquet 8 TFs, `E04_eventos.csv` (323 eventos), janelas de exclusão do E01, sessões em hora do servidor, módulos `ifm_metrics/` (gabarito.py incluso). Reusar `janelas_dia`/`caminhos_por_moeda` do gabarito para os alvos A2/A3.
+
+</details>
 
 <details><summary>E3 (concluída) — plano original</summary>
 

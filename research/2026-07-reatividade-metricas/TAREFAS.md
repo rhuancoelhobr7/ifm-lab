@@ -3,7 +3,7 @@
 Legenda: [ ] pendente · [~] em andamento · [x] concluída (evidência) · [!] bloqueada (motivo) · [-] cancelada (motivo)
 Regras: checkbox só marca com evidência · portões P1–P4 só marcam com decisão do usuário no PROGRESS.md
 Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências + portões + template didático §1.2)
-Última atualização: 2026-07-16 · sessão E4a (gabarito — claude de Carlos Eduardo)
+Última atualização: 2026-07-16 · sessão E4b (banco-mãe — claude de Carlos Eduardo)
 
 ## BLOCO A — Fundação
 ### E0 — Setup
@@ -32,9 +32,9 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Eventos detectados com as 2 âncoras candidatas (results/E04a_gabarito.md, results/E04_eventos.csv, scripts/e04a_gabarito.py)
 - [x] 20 dias-evento sorteados e plotados para auditoria (results/E04a_amostras)
 - [x] 🚪 P2a: 👤 gabarito APROVADO (C2) — âncora A-rompimento escolhida e congelada (PROGRESS.md, config.yaml)
-- [ ] Banco de estados gerado (métricas t0 + contexto MN→M5 última barra fechada + sessões + alvos intraday)
-- [ ] Splits físicos: treino / validação / data/sealed/
-- [ ] Relatório de sanidade results/E04b_auditoria.md
+- [x] Banco de estados gerado (métricas t0 + contexto MN1→M30 última barra fechada + sessões + alvos intraday A1–A3; M30 e H1) (scripts/e04b_banco.py, results/E04b_auditoria.md)
+- [x] Splits físicos: treino / validação / data/sealed/ (scripts/e04b_banco.py, results/E04b_auditoria.md)
+- [x] Relatório de sanidade results/E04b_auditoria.md (results/E04b_auditoria.md, results/E04b_20linhas.csv)
 - [ ] 🚪 P2b: 👤 banco APROVADO (C3, 20 linhas auditadas)
 - [ ] Extensão M5/M15 processada (pós-P2, com relatório de sanidade)
 
