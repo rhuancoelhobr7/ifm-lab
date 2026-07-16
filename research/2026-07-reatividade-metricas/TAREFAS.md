@@ -27,7 +27,7 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] 👤 Export do replay do indicador entregue (golden v2.00, base 2025-09-26) (data/raw/golden_meta.csv)
 - [x] Script de comparação pronto com guardas testadas (meta + selado) (scripts/e03_paridade.py)
 - [x] Relatório results/E03_paridade.md no formato checklist C1 (results/E03_paridade.md)
-- [ ] 🚪 P1: 👤 paridade APROVADA
+- [x] 🚪 P1: 👤 paridade APROVADA (PROGRESS.md, results/E03_paridade.md)
 ### E4 — Gabarito + banco-mãe · PORTÃO P2 (duplo)
 - [ ] Eventos detectados com as 2 âncoras candidatas (results/E04a_gabarito.md)
 - [ ] 20 dias-evento sorteados e plotados para auditoria

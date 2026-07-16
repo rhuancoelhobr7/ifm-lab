@@ -6,7 +6,7 @@
 
 ## Onde estamos
 
-**Etapa atual:** **E1 e E2 CONCLUÍDAS (2026-07-16).** Reexport v2.00 do usuário aprovado no inventário (cobertura 28/28 nos 8 TFs, zero linhas inválidas); parquet de métricas M30–D1 + W1/MN gerado (hash de config `2bbc928fa01e`; abertos+selados cortados fisicamente: M30 59065+9245, H1 29539+4624, H4 7395+1159, D1 1235+194, W1 508+40, MN1 116+10, zMov 59327+9265). Próximo: **E3 — paridade (portão P1)**, usando os `golden_*.csv` (falta o Rhuan confirmar formato/origem).
+**Etapa atual:** **E3 CONCLUÍDA — 🚪 P1 CARIMBADO (2026-07-16).** Paridade indicador ↔ Python aprovada com 100% dos campos dentro do C1 (ver decisão de portão abaixo). Parquet de métricas completo nos 8 TFs (hash `763beb9d23a1`, inclui M5/M15 pós-P1: M5 93146+55446 seladas, M15 31058+18486). Próxima etapa: **E4 — gabarito de eventos + banco-mãe (portão P2 duplo)**.
 
 **⚠️ 2026-07-15 (noite) — o reexport recebido NÃO serve para o plano congelado.** O commit `1465b92` substituiu o `data/raw/` por um export de **outro servidor** (`Upcomers-Server`, antes `MetaQuotes-Demo`) com três problemas fatais: (1) **histórico só desde 2026-01-12** em TODOS os TFs (~6 meses; o config exige 2016/2021/2024 — treino, validação e teste selado ficam impossíveis); (2) **faltam EURUSD, GBPUSD e USDJPY** (o manifest nem os tentou — provável sufixo/ausência no Market Watch do broker novo; sem os majors não há cesta de 7 pares por moeda e o painel G8 quebra); (3) **offset GMT+2 em pleno julho** (MetaQuotes era +3 no verão) — outro regime de fuso, que invalidaria a calibração de sessões congelada. Além disso a substituição **apagou os `golden_*.csv`** (insumo da paridade E3) **e o `server_meta.csv`**. Nada está perdido: o export MetaQuotes-Demo completo (229 arquivos) é recuperável do commit `b7f19a8`.
 
@@ -38,11 +38,21 @@
 
 ## Decisões de portão (P1–P4)
 
-_Nenhuma ainda. Portões só são marcados com decisão do usuário registrada aqui._
+**🚪 P1 — PARIDADE APROVADA (decidido por Rhuan, 2026-07-16).** Evidência: `results/E03_paridade.md` — todos os campos (S, IFM por par, vel, acel, zvel, zS, cesta em M30/H1/H4/D1; zS/mtf/VETO/rank/candidata/zMov/zHist na cadeia cruzada) com 100% dos pontos dentro do C1 e erro máximo 0.0000 (zvel M30: 0.96% relativo, dentro do 1%). Duas decisões que compõem o carimbo:
+1. **Ressalva registrada (PLANO §7, Plano B):** âncora M30 2025-09-26 22:30 excluída do C1 (44 pontos) — empate numérico irredutível num juiz do EURAUD (double exato do servidor × preço arredondado do CSV; ≤ 2× o critério).
+2. **zMov/zHist bug-for-bug:** o Python reproduz o comportamento AO VIVO do painel (z do dia anterior até a mesma hora — descoberta 4), deslocamento implementado em `ifm_metrics/daymove.py` (docstring documenta; reverter se o indicador for corrigido). 34 testes verdes após o ajuste.
+
+A calculadora Python é oficialmente a régua da pesquisa. Liberados: extensão M5/M15 do parquet e E4 (gabarito + banco).
 
 **2026-07-15 — `data/raw/` desta pesquisa é VERSIONADO no git** (decisão do usuário, exceção à regra 4 do CLAUDE.md registrada lá e no .gitignore): o repo será compartilhado com um colaborador que rodará fases da pesquisa e precisa dos mesmos CSVs. Derivados regeneráveis (parquet, cache, sealed) continuam gitignorados. Export do usuário recebido em 2026-07-15: 229 arquivos, 549 MB.
 
 ## Pendências que dependem do usuário (👤)
+
+_Nenhuma no momento. A próxima participação 👤 é a auditoria C2 do gabarito (P2a), no E4._
+
+<details><summary>Pendências resolvidas (histórico)</summary>
+
+- ~~🚪 P1 — duas decisões~~ DECIDIDAS por Rhuan em 2026-07-16 (ressalva M30 aprovada + bug-for-bug no zMov) → P1 carimbado.
 
 - **🚪 P1 — duas decisões para carimbar (Rhuan ou Léo), com `results/E03_paridade.md` em mãos:**
   1. **Ressalva do M30 (Plano B do PLANO §7):** paridade M30 tem 1 barra divergente em 2240 (EURAUD 2025-09-26 22:30, um juiz no fio da navalha — double exato do servidor × preço arredondado do CSV). 99.69% ≥ 99% ✔, mas máx 0.95 > 0.5 e ≤ 2× o critério → o PLANO prevê aprovação com ressalva registrada. Aprovam?
@@ -54,6 +64,8 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 - ~~Export completo do zero~~ CONCLUÍDO em 2026-07-16 (ver decisões). Instruções originais mantidas para referência:
 - **Export completo do zero (Rhuan, no MT5, conta MetaQuotes-Demo):** recompilar o `ExportBarsG8.mq5` **v2.00** (F7) e rodar com os defaults (sobrescreve tudo). O v2.00 separa SINCRONIZAÇÃO (espera o download do histórico profundo, com progresso visível e paciência de 5 min/série — a causa-raiz das falhas do v1.00/v1.10 com cache frio pós-troca de servidor) da CÓPIA (fatias anuais). Interrompeu? Rodar de novo com `Pular arquivos = true` retoma. Ao final: copiar a pasta para `data/raw/` (os golden_*/server_meta não são tocados) e comparar o novo export com o restaurado de `b7f19a8` antes de substituir em definitivo.
 - **Confirmar com o Rhuan o formato/origem dos `golden_*.csv`** (export do replay do indicador, insumo da paridade E3) — restaurados junto com o data/raw.
+
+</details>
 
 ## Log de sessões
 
@@ -70,8 +82,14 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 | 2026-07-16 | E1-fecho + E2-fecho (Claude/Rhuan) | Reexport v2.00 recebido (196 ok + 28 M5 parciais → mantidos os M5 do v1.00; proveniência híbrida anotada no _manifest). Inventário verde: 28/28 nos 8 TFs, M30/H1 desde 2021-01-04, zero inválidas; venv da pesquisa criado via uv. Parquet de métricas gerado (hash 2bbc928fa01e). E1 e E2 fechadas no TAREFAS. | (este commit) |
 | 2026-07-16 | E3-preparo (Claude/Rhuan) | golden_*.csv antigos descartados como verdade C1 (origem desconhecida — decisão de Rhuan; quarentena em legadoV2_*). Criada a ferramenta oficial de replay `tools/export_golden/ExportGoldenIFM.mq5` (cópia literal do cálculo do IFM v1.0 + golden_meta com proveniência completa). Pendência 👤: rodar no MT5. | (este commit) |
 | 2026-07-16 | E3 (comparador + correção da ferramenta) | Golden v1.00 recebido mas ancorado em HOJE (julho > fim dos dados E dentro do selado) → ExportGoldenIFM v1.10 com `InpAnchorBase` (default = fim da validação 2025-09-30; paridade nunca toca o selado). `scripts/e03_paridade.py` escrito: compara golden × Parquet E2 (S/IFM absoluto, derivadas relativo, inteiros exatos, NaN casados), guardas de meta e de selado TESTADAS (recusou o golden de julho), relatório checklist C1 automático. Pendência 👤: re-rodar a ferramenta v1.10. | (este commit) |
+| 2026-07-16 | E3 (diagnóstico golden v2.00) | v1.10 rodada na base do selado errada... corrigida; golden v2.00 (base 26/09) comparado: H1/H4/D1 + cadeia cruzada BIT-PERFEITOS; 2 focos diagnosticados (1 barra EURAUD no fio da navalha; zMov = dia anterior no vivo, confirmado com deslocamento 0.0 exato). Descobertas 4 e 5 registradas. | c31af46 |
+| 2026-07-16 | E3-fecho (Claude; decisões de Rhuan) | P1 CARIMBADO: ressalva M30 (âncora 26/09 22:30, 44 pontos) + bug-for-bug do zMov no daymove.py (34 testes verdes) → paridade 100% em todos os campos, erro máx 0.0000. Parquet estendido a M5/M15 (cache do e02 corrigido para ser por-TF). | (este commit) |
 
 ## Próxima etapa
+
+**E4 — Gabarito de eventos + banco-mãe (PORTÃO P2 duplo).** Ordem interna do PLANO: (1) detectar os eventos de tendência diária com as DUAS âncoras candidatas (config `event`) e gerar `results/E04a_gabarito.md` com os 20 dias-evento sorteados e plotados; (2) 👤 auditoria C2 — escolher a âncora, congelar no config (adendo do P2); (3) banco de estados + splits físicos + `results/E04b_auditoria.md`; (4) 👤 auditoria C3. Insumos prontos: parquet dos 8 TFs (hash `763beb9d23a1`), janelas de exclusão do E01, sessões congeladas em hora do servidor.
+
+<details><summary>E3 (concluída) — plano original</summary>
 
 **E3 — Verificação de paridade (PORTÃO P1).**
 
@@ -80,3 +98,5 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 Substituto oficial: **`tools/export_golden/ExportGoldenIFM.mq5`** — cópia LITERAL das funções de cálculo do `src/IFM.mq5` v1.0, gera golden frescos com proveniência completa (`golden_meta.csv` registra parâmetros, servidor, offset, data). Saídas: strength/derivadas/pares por âncora de shift (M30–D1, 80 âncoras) + `golden_cross.csv` com a cadeia cruzada (zS, mtf, VETO, rank, zMov/zHist, candidata) em 12 amostras de tempo com âncora por tempo (semântica de replay). Passos restantes: (1) 👤 rodar a ferramenta (pendência acima); (2) comparação Python × golden; (3) `results/E03_paridade.md` no checklist C1; (4) 🚪 P1. Só depois do P1: extensão M5/M15 do parquet e E4.
 
 Notas do inventário de 2026-07-16 (reexport v2.00 + M5 do v1.00): cobertura 28/28 nos 8 TFs, zero linhas inválidas; buracos grandes = fechamentos globais em janelas de exclusão (`results/E01_janelas_excluidas.csv`); GBPNZD segue como o par com mais buracos individuais (a vigiar no E4).
+
+</details>

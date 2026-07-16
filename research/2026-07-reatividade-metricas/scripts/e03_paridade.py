@@ -38,6 +38,17 @@ PARQUET = RESEARCH / "data" / "parquet"
 TF_SEC = {"M30": 1800, "H1": 3600, "H4": 14400, "D1": 86400}
 CURS = ["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD", "NZD"]
 
+# Ressalva registrada (P1, decisão de Rhuan em 2026-07-16 — PLANO §7, Plano B):
+# empate numérico irredutível num juiz do EURAUD na barra M30 de 26/09 22:30
+# (double exato do servidor × preço arredondado do CSV) contamina a âncora
+# inteira (S/derivadas das moedas e o zS transversal). A âncora é excluída do
+# C1 e contada à parte no relatório.
+RESSALVAS_ANCORAS = [("M30", "2025-09-26 22:30")]
+
+# Segundo nível do Plano B: campo que falha SÓ no erro máximo, com máximo
+# ≤ 2× o critério e ≥99% dos pontos ok → aprovado com ressalva (✔*).
+FATOR_RESSALVA = 2.0
+
 
 def cfg_carrega() -> dict:
     with open(RESEARCH / "config.yaml", encoding="utf-8") as f:
@@ -91,11 +102,15 @@ def compara(golden: pd.Series, python: pd.Series, tipo: str, cfg_c1: dict) -> di
         r.update(pct_ok=np.nan, max_err=np.nan, aprovado=(nan_mismatch == 0))
         return r
     d = (p[ok_idx] - g[ok_idx]).abs()
+    r["ressalva"] = False
     if tipo == "s":
         lim, lim_max = cfg_c1["ds_abs_p99"], cfg_c1["ds_abs_max"]
         r["pct_ok"] = float((d <= lim).mean() * 100)
         r["max_err"] = float(d.max())
         r["aprovado"] = (r["pct_ok"] >= 99.0) and (r["max_err"] <= lim_max) and nan_mismatch == 0
+        if not r["aprovado"] and nan_mismatch == 0 and r["pct_ok"] >= 99.0 \
+           and r["max_err"] <= FATOR_RESSALVA * lim_max:
+            r["aprovado"] = r["ressalva"] = True
     elif tipo == "rel":
         # erro relativo com piso de escala: denom = max(|golden|, 1% da escala
         # típica do campo) — evita que valores ~0 explodam a razão.
@@ -106,6 +121,9 @@ def compara(golden: pd.Series, python: pd.Series, tipo: str, cfg_c1: dict) -> di
         r["pct_ok"] = float((rel <= lim).mean() * 100)
         r["max_err"] = float(rel.max())
         r["aprovado"] = (r["pct_ok"] >= 99.0) and (r["max_err"] <= 5 * lim) and nan_mismatch == 0
+        if not r["aprovado"] and nan_mismatch == 0 and r["pct_ok"] >= 99.0 \
+           and r["max_err"] <= FATOR_RESSALVA * 5 * lim:
+            r["aprovado"] = r["ressalva"] = True
     else:  # int — igualdade exata
         exato = (g[ok_idx] == p[ok_idx])
         r["pct_ok"] = float(exato.mean() * 100)
@@ -133,10 +151,11 @@ def md_tab(linhas: list[list], cab: list[str]) -> str:
 
 
 def fmt(r: dict) -> list:
+    simbolo = "✔*" if r.get("ressalva") else ("✔" if r["aprovado"] else "✘")
     return [r["n"], r["nan_ambos"], r["nan_mismatch"],
             "—" if np.isnan(r.get("pct_ok", np.nan)) else f"{r['pct_ok']:.2f}%",
             "—" if np.isnan(r.get("max_err", np.nan)) else f"{r['max_err']:.4f}",
-            "✔" if r["aprovado"] else "✘"]
+            simbolo]
 
 
 def main() -> int:
@@ -164,6 +183,15 @@ def main() -> int:
     g_crx = pd.read_csv(gdir / "golden_cross.csv", na_values=na)
     for df, col in ((g_str, "bar_time"), (g_der, "bar_time"), (g_par, "bar_time"), (g_crx, "sample_time")):
         df[col] = pd.to_datetime(df[col], format="%Y.%m.%d %H:%M")
+
+    # âncoras sob ressalva registrada: fora do C1, contadas à parte
+    n_ressalvados = 0
+    for tf_r, bt_r in RESSALVAS_ANCORAS:
+        ts_r = pd.Timestamp(bt_r)
+        for df in (g_str, g_der, g_par):
+            m = (df["tf"] == tf_r) & (df["bar_time"] == ts_r)
+            n_ressalvados += int(m.sum())
+            df.drop(df.index[m], inplace=True)
 
     # 🔒 disciplina do selado: paridade só em treino+validação
     fim_val = pd.Timestamp(cfg["splits"]["validacao"]["fim"]) + pd.Timedelta(days=1)
@@ -222,12 +250,14 @@ def main() -> int:
         r = compara(crx[campo], py_v, tipo, c1)
         resumo.append([f"{campo} (cross)"] + fmt(r)); todos_ok &= r["aprovado"]
 
-    # --- diagnóstico zMov/zHist: o indicador AO VIVO usa shift 1 no D1 =
-    # dia ANTERIOR até a mesma hora (MetAnchorShift live retorna 1; o D1 de
-    # hoje é o shift 0, em formação). O Python (daymove) usa o dia CORRENTE.
-    # Linhas informativas (não contam no C1): golden × python(T - 1 dia útil).
+    # --- diagnóstico zMov/zHist (só roda se o C1 primário falhou): confere se
+    # a divergência é o deslocamento de 1 dia do painel ao vivo (descoberta 4
+    # do PROGRESS). Com o bug-for-bug aplicado no daymove.py, o primário passa
+    # e estas linhas não aparecem.
+    zmov_falhou = any(l[0].startswith(("zmov (cross)", "zhist (cross)")) and l[-1] == "✘"
+                      for l in resumo)
     achado_zmov = False
-    for campo, col in (("zmov", "zmov"), ("zhist", "zhist")):
+    for campo, col in (("zmov", "zmov"), ("zhist", "zhist")) if zmov_falhou else ():
         for dias in (1, 3):  # -1 dia útil; segunda-feira → sexta = -3
             tt = crx["sample_time"] - pd.Timedelta(days=dias)
             v = pq_z.reindex(tt)
@@ -266,6 +296,12 @@ piso de 1% da escala do campo — 💡 senão valores ≈0 explodiriam a razão)
 ## Resultados
 
 {tab}
+
+{"**Ressalva registrada (P1, Rhuan, 2026-07-16 — PLANO §7 Plano B):** " + str(n_ressalvados) +
+ " ponto(s) excluído(s) do C1 na(s) âncora(s) " + ", ".join(f"{t} {b}" for t, b in RESSALVAS_ANCORAS) +
+ " — empate numérico irredutível num juiz (double do servidor × CSV arredondado). "
+ "✔* = aprovado no segundo nível da ressalva (falha só no erro máximo, ≤ 2× o critério, ≥99% ok)."
+ if (n_ressalvados or any(l[-1] == "✔*" for l in resumo)) else ""}
 
 **Leitura:** cada linha confronta um campo do painel nas duas calculadoras: N pontos
 comparáveis, NaN casados/descasados, fração dentro do limiar C1 e o pior desvio.

@@ -137,20 +137,22 @@ def _r_moedas_sintetico():
 def test_zhist_a_mao():
     dias, r_moedas = _r_moedas_sintetico()
     _, zhist = daymove.zmov_zhist(r_moedas, n_hist=20)
-    # dia 24 (par → valor 1+j), 20 anteriores no slot 10: dez 2s e dez 1s
-    # → média 1.5, σ_pop 0.5 → z = (1 - 1.5)/0.5 = -1  (igual p/ toda moeda)
+    # BUG-FOR-BUG (decisão P1 2026-07-16): a âncora do dia 24 exibe o z do
+    # DIA 23 (ímpar → valor 2+j); 20 anteriores no slot 10: dez 1s e dez 2s
+    # → média 1.5, σ_pop 0.5 → z = (2 - 1.5)/0.5 = +1  (igual p/ toda moeda)
     ancora = dias[24] + pd.Timedelta(seconds=11 * 1800)
     for cur in CUR:
-        assert zhist.loc[ancora, cur] == pytest.approx(-1.0)
+        assert zhist.loc[ancora, cur] == pytest.approx(+1.0)
 
 
 def test_zmov_a_mao():
     dias, r_moedas = _r_moedas_sintetico()
     zmov, _ = daymove.zmov_zhist(r_moedas, n_hist=20)
-    # slot 10, dia par: valores por moeda [1,2,3,4] → média 2.5, σ_pop=√1.25
+    # BUG-FOR-BUG: âncora do dia 24 → z do dia 23 (ímpar), slot 10: valores
+    # por moeda [2,3,4,5] → média 3.5, σ_pop=√1.25
     ancora = dias[24] + pd.Timedelta(seconds=11 * 1800)
-    assert zmov.loc[ancora, "AAA"] == pytest.approx((1 - 2.5) / np.sqrt(1.25))
-    assert zmov.loc[ancora, "DDD"] == pytest.approx((4 - 2.5) / np.sqrt(1.25))
+    assert zmov.loc[ancora, "AAA"] == pytest.approx((2 - 3.5) / np.sqrt(1.25))
+    assert zmov.loc[ancora, "DDD"] == pytest.approx((5 - 3.5) / np.sqrt(1.25))
     # slot 0: todas as moedas com r = j → σ>0, mas se todas iguais → NaN
     r_iguais = {c: pd.DataFrame(np.ones((25, 48)), index=dias, columns=range(48))
                 for c in CUR}
