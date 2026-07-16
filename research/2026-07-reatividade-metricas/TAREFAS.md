@@ -49,10 +49,10 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 ### E6 — Limiares, pós-disparo, exaustão e VETO (Q2→Q3→Q7)
 - [x] Curvas limiar × (latência, falsos, captura) por métrica × TF × sessão (results/E06_limiares.md, results/E06_curvas.csv)
 - [x] Limiares empíricos vs. atuais confrontados (results/E06_limiares.md)
-- [ ] Estudo de eventos pós-disparo + sobrevivência intraday
-- [ ] Exaustão por métrica e por relógio (C6)
-- [ ] Veredito do VETO (ajuda / enfeite / atrapalha) + versão graduada testada
-- [ ] results/E06_*.md + entradas candidatas a LEITURA.md
+- [x] Estudo de eventos pós-disparo + sobrevivência intraday (results/E06_posdisparo.md)
+- [x] Exaustão por métrica e por relógio (C6) (results/E06_posdisparo.md)
+- [x] Veredito do VETO (ajuda / enfeite / atrapalha) + versão graduada testada (results/E06_posdisparo.md)
+- [x] results/E06_*.md + entradas candidatas a LEITURA.md (results/E06_limiares.md, results/E06_posdisparo.md)
 ### E7 — Conflitos e hierarquia de TFs (Q5+Q6)
 - [ ] Efeito do contexto MN/W1/D1 sobre detecção intraday (C7)
 - [ ] Conflito precoce como sinal testado
