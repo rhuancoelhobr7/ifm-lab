@@ -43,12 +43,12 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Quatro notas por métrica × TF de detecção × sessão (bootstrap por dia) (scripts/e05_corrida.py, results/E05_liga.csv)
 - [x] Ranking de agilidade + tabela-liga com leituras (results/E05_corrida.md) (results/E05_corrida.md)
 - [x] Classificação preliminar C4 (reativa) / C5 (morta) (results/E05_corrida.md)
-- [ ] 🚪 P3: 👤 ordem dos ramos do Bloco C decidida (registrada no PROGRESS.md)
+- [x] 🚪 P3: 👤 ordem dos ramos do Bloco C decidida — E6→E8→E7→E9, foco zS/cesta/vel M30/H1 (PROGRESS.md)
 
 ## BLOCO C — Ramos (ordem definida no P3)
 ### E6 — Limiares, pós-disparo, exaustão e VETO (Q2→Q3→Q7)
-- [ ] Curvas limiar × (latência, falsos, captura) por métrica × TF × sessão
-- [ ] Limiares empíricos vs. atuais confrontados
+- [x] Curvas limiar × (latência, falsos, captura) por métrica × TF × sessão (results/E06_limiares.md, results/E06_curvas.csv)
+- [x] Limiares empíricos vs. atuais confrontados (results/E06_limiares.md)
 - [ ] Estudo de eventos pós-disparo + sobrevivência intraday
 - [ ] Exaustão por métrica e por relógio (C6)
 - [ ] Veredito do VETO (ajuda / enfeite / atrapalha) + versão graduada testada

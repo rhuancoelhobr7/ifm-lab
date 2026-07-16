@@ -65,9 +65,12 @@ def sinal_e_forca(df: pd.DataFrame, met: str) -> tuple[pd.Series, pd.Series]:
     raise KeyError(met)
 
 
-def quatro_notas(df: pd.DataFrame, met: str, thr: float, util_pct: float
-                 ) -> pd.DataFrame:
-    """Notas por split: latência/consumido/captura por evento + falsos/precisão."""
+def quatro_notas(df: pd.DataFrame, met: str, thr: float, util_pct: float,
+                 detalhe: bool = False):
+    """Notas por split: latência/consumido/captura por evento + falsos/precisão.
+
+    detalhe=True: devolve também o frame por-evento (1º disparo válido) com
+    moeda/âncora/latência/consumido — usado pelo E6 para recortes por sessão."""
     dirs, forca = sinal_e_forca(df, met)
     ligado = (forca >= thr) & (dirs != 0)
     # cruzamentos por moeda (estado assinado muda para "ligado")
@@ -79,7 +82,7 @@ def quatro_notas(df: pd.DataFrame, met: str, thr: float, util_pct: float
     certo = dirs == df["gab_direcao"]
     disparo_ev = cruz & dentro & certo
 
-    linhas = []
+    linhas, detalhes = [], []
     for split, g in df.groupby("split", sort=False):
         d_ev = disparo_ev[g.index]
         ev = g[d_ev].sort_values("t").groupby(["moeda", "gab_ancora"], sort=False).first()
@@ -89,6 +92,14 @@ def quatro_notas(df: pd.DataFrame, met: str, thr: float, util_pct: float
             consumido = (ev["cesta_path"] * ev["gab_direcao"] / ev["gab_magnitude"]).clip(0, 2)
             util = consumido < util_pct
             captura = (1 - consumido).clip(lower=0) * 100
+            if detalhe:
+                det = pd.DataFrame({"split": split,
+                                    "moeda": ev.index.get_level_values(0),
+                                    "gab_ancora": ev.index.get_level_values(1),
+                                    "latencia_min": lat.to_numpy(),
+                                    "consumido": consumido.to_numpy(),
+                                    "util": util.to_numpy()})
+                detalhes.append(det)
         else:
             lat = consumido = captura = pd.Series(dtype=float)
             util = pd.Series(dtype=bool)
@@ -117,6 +128,9 @@ def quatro_notas(df: pd.DataFrame, met: str, thr: float, util_pct: float
             "precisao_pct": round(100 * d_ev.sum() / max(n_cruz, 1), 1),
             "falsos_por_semana": round(float(fora.sum()) / semanas / 8, 2),  # por moeda
         })
+    if detalhe:
+        return pd.DataFrame(linhas), (pd.concat(detalhes, ignore_index=True)
+                                      if detalhes else pd.DataFrame())
     return pd.DataFrame(linhas)
 
 
