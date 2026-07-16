@@ -16,7 +16,7 @@
 //|  Uso passo a passo para leigos: ver README.md nesta pasta.       |
 //+------------------------------------------------------------------+
 #property copyright   "ifm-lab"
-#property version     "1.00"
+#property version     "1.10"  // v1.10: fatias anuais no CopyRates (corrige travamento em W1/MN 2016)
 #property description "Exporta barras dos 28 pares G8 (8 TFs) para CSV — pesquisa reatividade-metricas (E1)"
 #property script_show_inputs
 
@@ -89,24 +89,42 @@ int DetectG8Pairs(string &pairs[])
   }
 
 //+------------------------------------------------------------------+
-//| CopyRates com paciencia: o historico pode estar baixando         |
+//| 1º de janeiro do ano dado, como datetime                          |
 //+------------------------------------------------------------------+
-int CopyRatesRetry(const string sym, const ENUM_TIMEFRAMES tf,
-                   const datetime from, const datetime to, MqlRates &rates[])
+datetime Jan1(const int year)
   {
-   int copied = -1;
-   for(int attempt = 0; attempt < 80 && !IsStopped(); attempt++)
-     {
-      ResetLastError();
-      copied = CopyRates(sym, tf, from, to, rates);
-      if(copied > 0) return copied;
-      Sleep(250); // aguarda a sincronizacao do historico e tenta de novo
-     }
-   return copied;
+   return StringToTime(StringFormat("%04d.01.01 00:00", year));
   }
 
 //+------------------------------------------------------------------+
-//| Exporta um par × TF. rows = -1 significa "pulado (ja existia)".  |
+//| CopyRates de UMA FATIA, com paciencia e log de vida.              |
+//| Fatias pequenas (1 ano) evitam o bloqueio do CopyRates em faixas  |
+//| longas de historico profundo (causa do travamento em W1/MN 2016). |
+//| Retorno: n>0 barras; 0 = fatia legitimamente vazia; -1 = falha.   |
+//+------------------------------------------------------------------+
+int CopyChunkRetry(const string sym, const ENUM_TIMEFRAMES tf, const string tfName,
+                   const datetime from, const datetime to, MqlRates &rates[])
+  {
+   for(int attempt = 1; attempt <= 40 && !IsStopped(); attempt++)
+     {
+      ResetLastError();
+      int copied = CopyRates(sym, tf, from, to, rates);
+      if(copied > 0) return copied;
+      int err = GetLastError();
+      // 4001 BARS_NOT_FOUND com historico ja sincronizado = fatia vazia (antes
+      // do inicio da serie no broker) — nao e falha.
+      if(copied == 0) return 0;
+      if(attempt % 10 == 0)
+         PrintFormat("ExportBarsG8: aguardando historico %s %s (%s..%s) tentativa %d/40 erro=%d",
+                     sym, tfName, TimeToString(from, TIME_DATE), TimeToString(to, TIME_DATE),
+                     attempt, err);
+      Sleep(500); // aguarda a sincronizacao e tenta de novo
+     }
+   return -1;
+  }
+
+//+------------------------------------------------------------------+
+//| Exporta um par × TF em fatias anuais. rows=-1: pulado (existia). |
 //+------------------------------------------------------------------+
 bool ExportOne(const string sym, const ENUM_TIMEFRAMES tf, const string tfName,
                int &rows, datetime &firstBar, datetime &lastBar, string &file)
@@ -116,15 +134,6 @@ bool ExportOne(const string sym, const ENUM_TIMEFRAMES tf, const string tfName,
 
    if(InpOnlyMissing && FileIsExist(file)) { rows = -1; return true; }
 
-   MqlRates rates[];
-   int copied = CopyRatesRetry(sym, tf, FromForTf(tf), InpTo, rates);
-   if(copied <= 0)
-     {
-      PrintFormat("ExportBarsG8: FALHA em %s %s (erro %d) — rode o script de novo depois.",
-                  sym, tfName, GetLastError());
-      return false;
-     }
-
    int digits = (int)SymbolInfoInteger(sym, SYMBOL_DIGITS);
    int h = FileOpen(file, FILE_WRITE|FILE_TXT|FILE_ANSI);
    if(h == INVALID_HANDLE)
@@ -132,25 +141,56 @@ bool ExportOne(const string sym, const ENUM_TIMEFRAMES tf, const string tfName,
       PrintFormat("ExportBarsG8: nao consegui criar %s (erro %d).", file, GetLastError());
       return false;
      }
-
    FileWrite(h, "time_epoch,time_server,open,high,low,close,tick_volume,spread");
-   for(int i = 0; i < copied; i++)
+
+   datetime from = FromForTf(tf);
+   MqlDateTime st;
+   TimeToStruct(from, st);
+   datetime lastWritten = 0;
+
+   for(int year = st.year; !IsStopped(); year++)
      {
-      FileWrite(h, StringFormat("%I64d,%s,%s,%s,%s,%s,%I64d,%d",
-                                (long)rates[i].time,
-                                TimeToString(rates[i].time, TIME_DATE|TIME_MINUTES),
-                                DoubleToString(rates[i].open,  digits),
-                                DoubleToString(rates[i].high,  digits),
-                                DoubleToString(rates[i].low,   digits),
-                                DoubleToString(rates[i].close, digits),
-                                rates[i].tick_volume,
-                                (int)rates[i].spread));
+      datetime a = from > Jan1(year) ? from : Jan1(year);
+      datetime b = InpTo < Jan1(year + 1) ? InpTo : (datetime)((long)Jan1(year + 1) - 1);
+      if(a > InpTo) break;
+
+      MqlRates rates[];
+      int copied = CopyChunkRetry(sym, tf, tfName, a, b, rates);
+      if(copied < 0)
+        {
+         FileClose(h);
+         FileDelete(file); // arquivo parcial fora — a proxima rodada refaz inteiro
+         PrintFormat("ExportBarsG8: FALHA em %s %s (fatia %d) — rode o script de novo depois.",
+                     sym, tfName, year);
+         return false;
+        }
+      for(int i = 0; i < copied; i++)
+        {
+         if(rates[i].time <= lastWritten) continue; // dedup na emenda das fatias
+         FileWrite(h, StringFormat("%I64d,%s,%s,%s,%s,%s,%I64d,%d",
+                                   (long)rates[i].time,
+                                   TimeToString(rates[i].time, TIME_DATE|TIME_MINUTES),
+                                   DoubleToString(rates[i].open,  digits),
+                                   DoubleToString(rates[i].high,  digits),
+                                   DoubleToString(rates[i].low,   digits),
+                                   DoubleToString(rates[i].close, digits),
+                                   rates[i].tick_volume,
+                                   (int)rates[i].spread));
+         lastWritten = rates[i].time;
+         if(firstBar == 0) firstBar = rates[i].time;
+         lastBar = rates[i].time;
+         rows++;
+        }
+      if(year >= 2100) break; // guarda-corpo
      }
    FileClose(h);
 
-   rows     = copied;
-   firstBar = rates[0].time;
-   lastBar  = rates[copied-1].time;
+   if(rows == 0)
+     {
+      FileDelete(file);
+      PrintFormat("ExportBarsG8: %s %s veio VAZIO (broker sem historico no periodo).", sym, tfName);
+      return false;
+     }
    return true;
   }
 

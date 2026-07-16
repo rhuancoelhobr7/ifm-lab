@@ -6,7 +6,7 @@
 
 ## Onde estamos
 
-**Etapa atual:** E1 e o fecho do E2 travados numa **decisão de dados 👤** (ver pendências). A parte de código do E2 está PRONTA e testada (34 testes verdes, só dados sintéticos); falta apenas gerar o parquet real quando a fonte de dados for decidida.
+**Etapa atual:** decisão de dados RESOLVIDA (MetaQuotes-Demo; ver decisões) — `data/raw/` restaurado do commit `b7f19a8` (229 arquivos, golden + server_meta de volta). Falta só o **reexport M30/H1 desde 2021** (👤 no MT5, com o ExportBarsG8 v1.10) → rodar `e01_inventario.py` de novo → fechar E1 → `e02_gerar_metricas.py` (código do E2 já pronto, 34 testes verdes).
 
 **⚠️ 2026-07-15 (noite) — o reexport recebido NÃO serve para o plano congelado.** O commit `1465b92` substituiu o `data/raw/` por um export de **outro servidor** (`Upcomers-Server`, antes `MetaQuotes-Demo`) com três problemas fatais: (1) **histórico só desde 2026-01-12** em TODOS os TFs (~6 meses; o config exige 2016/2021/2024 — treino, validação e teste selado ficam impossíveis); (2) **faltam EURUSD, GBPUSD e USDJPY** (o manifest nem os tentou — provável sufixo/ausência no Market Watch do broker novo; sem os majors não há cesta de 7 pares por moeda e o painel G8 quebra); (3) **offset GMT+2 em pleno julho** (MetaQuotes era +3 no verão) — outro regime de fuso, que invalidaria a calibração de sessões congelada. Além disso a substituição **apagou os `golden_*.csv`** (insumo da paridade E3) **e o `server_meta.csv`**. Nada está perdido: o export MetaQuotes-Demo completo (229 arquivos) é recuperável do commit `b7f19a8`.
 
@@ -28,6 +28,8 @@
 2. **O VETO usa VEL com k=6 fixo** (`MetVel(sr6H4, 6)`, linha ~1146), não `InpMetVelK` — coincidem no default, divergiriam se o input mudasse. Reproduzido fielmente.
 3. Divergência deliberada e documentada no zMov/zHist: o fonte alinha "dia i" por contagem de barras D1 de cada par; o pipeline alinha por data de calendário (mais conservador; NaN onde um par pula um dia). Conferir no E3 se algum desvio de paridade cai nesses dias (docstring de `scripts/ifm_metrics/daymove.py`).
 
+**2026-07-15 — Fonte de dados: MetaQuotes-Demo (decidido por Rhuan).** Rhuan optou pela via recomendada — descartou o export Upcomers e voltou a exportar na conta MetaQuotes-Demo (reexport em andamento quando o script v1.00 travou no W1; corrigido no v1.10 com fatias anuais). `data/raw/` restaurado do commit `b7f19a8` na íntegra. Pendência residual: só o reexport M30/H1 desde 2021-01-01.
+
 ## Decisões de portão (P1–P4)
 
 _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada aqui._
@@ -36,8 +38,8 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 
 ## Pendências que dependem do usuário (👤)
 
-- **DECISÃO: qual fonte de dados é a verdade?** Recomendação do Claude: **(a) restaurar o export MetaQuotes-Demo** do commit `b7f19a8` (um comando: `git checkout b7f19a8 -- research/2026-07-reatividade-metricas/data/raw` + commit) e refazer na conta **MetaQuotes-Demo** apenas o reexport de M30/H1 desde 2021-01-01 (apagar os `*_M30.csv`/`*_H1.csv` da pasta `MQL5/Files/IFM_export/` antes, senão o exportador os pula). Alternativa (b): adotar o servidor Upcomers exigiria reescrever os períodos congelados do PLANO (adendo) para ~6 meses de dados, sem os 3 majors — na prática mataria a pesquisa como desenhada. Enquanto não decidido, nenhum script roda sobre o `data/raw/` atual.
-- **Confirmar com o Rhuan o formato/origem dos `golden_*.csv`** (export do replay do indicador, insumo da paridade E3) — eles foram apagados na substituição do data/raw; recuperáveis do mesmo commit `b7f19a8`.
+- **Reexport M30/H1 desde 2021 (Rhuan, no MT5, conta MetaQuotes-Demo):** recompilar o `ExportBarsG8.mq5` **v1.10** (F7), rodar com `TFs a exportar = "M30,H1"` e `Pular arquivos que ja existem = false`; copiar os 56 CSVs resultantes para `data/raw/` por cima dos atuais. O v1.10 corrige o travamento do v1.00 (CopyRates bloqueava em faixas longas de histórico profundo — agora pede em fatias anuais e loga o progresso no diário).
+- **Confirmar com o Rhuan o formato/origem dos `golden_*.csv`** (export do replay do indicador, insumo da paridade E3) — restaurados junto com o data/raw.
 
 ## Log de sessões
 
@@ -49,6 +51,7 @@ _Nenhuma ainda. Portões só são marcados com decisão do usuário registrada a
 | 2026-07-15 | E1-verificação do reexport (Léo) | Reexport recebido (`1465b92`) analisado e REPROVADO: outro servidor (Upcomers), 6 meses de histórico, sem os 3 majors, golden/server_meta apagados. Decisão de fonte de dados aberta como pendência 👤; recomendação: restaurar `b7f19a8`. | ddf9b27 |
 | 2026-07-15 | E2 (pipeline + testes — Léo) | Cadeia completa do painel em Python (`scripts/ifm_metrics/`: IFM Light, S, cesta, vel/acel/zvel, zS, mtf/VETO/candidata/rank H1, zMov/zHist) + orquestrador `e02_gerar_metricas.py` (cache por hash, trava de proveniência, corte físico do selado já no estágio de métricas). 34 testes verdes: fixtures à mão + vetorizado × porta de referência (tradução literal do MQL5, `reference.py`) + ponta a ponta em raw sintético. Parquet real aguarda a decisão de dados. | (este commit) |
 | 2026-07-15 | Ferramenta (Claude/Rhuan) | Exportador Python `tools/export_bars/export_bars_g8.py` (API MetaTrader5, Windows): mesmos CSVs/manifest do .mq5, escrita direta em data/raw/, e **trava de servidor** — recusa conta ≠ `mt5.conta_servidor` do config (previne repetir o reexport reprovado). Uso para a pendência: `--tfs M30,H1 --overwrite` na conta MetaQuotes-Demo. | (este commit) |
+| 2026-07-15 | Correção + restauração (Claude/Rhuan) | Rhuan decidiu a fonte de dados (MetaQuotes-Demo); `data/raw/` restaurado de `b7f19a8` (229 arquivos, golden de volta). ExportBarsG8 **v1.10**: CopyRates em fatias anuais + log de vida — corrige o travamento em 7/224 (bloqueio do CopyRates no W1 pedindo 2016→2026 de uma vez). Exportador Python descartado para uso local (Rhuan está no Linux; pacote MetaTrader5 é Windows-only) — fica para o colaborador se útil. | (este commit) |
 
 ## Próxima etapa
 
