@@ -1,21 +1,10 @@
-# Dados brutos de mercado (barras, ticks, exports do MT5) — nunca commitados
-research/**/data/
-tools/**/data/
+# DADOS: versionados por decisão de Rhuan (2026-07-16) — o repo é compartilhado
+# com um colaborador e TODO o data/ das pesquisas entra no git (raw, parquet,
+# sealed, cache), estendendo a exceção de 2026-07-15 que cobria só o raw/.
+# A regra 4 do CLAUDE.md registra a exceção. O bloco selado continua protegido
+# pelos scripts (recusam data/sealed/ até o E11) — versionar não muda isso.
 *.hst
 *.tks
-
-# CSVs grandes de export ficam fora por padrão; resultados agregados pequenos
-# podem ser commitados explicitamente com `git add -f` quando fizer sentido
-research/**/raw/
-
-# EXCEÇÃO (2026-07-15, decisão do usuário): os CSVs brutos da pesquisa
-# reatividade-metricas SÃO versionados — o repo é compartilhado com um
-# colaborador que rodará fases da pesquisa e precisa dos mesmos dados.
-# Derivados regeneráveis (parquet, cache, sealed) continuam fora.
-!research/2026-07-reatividade-metricas/data/
-research/2026-07-reatividade-metricas/data/**
-!research/2026-07-reatividade-metricas/data/raw/
-!research/2026-07-reatividade-metricas/data/raw/**
 
 # Python
 __pycache__/

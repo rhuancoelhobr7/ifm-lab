@@ -64,6 +64,8 @@
 
 A calculadora Python é oficialmente a régua da pesquisa. Liberados: extensão M5/M15 do parquet e E4 (gabarito + banco).
 
+**2026-07-16 — TODO o `data/` é VERSIONADO no git (decidido por Rhuan; amplia a exceção de 2026-07-15).** O .gitignore deixou de excluir os derivados: parquet de métricas, banco-mãe, sealed e cache entram no repo junto com o raw — o colaborador clona e roda análises sem regenerar nada (a reprodutibilidade por hash continua valendo como verificação, não como necessidade). O bloco SELADO versionado não muda a disciplina: os scripts E5–E10 seguem recusando `data/sealed/` por construção e a abertura única continua sendo o E11. Regra 4 do CLAUDE.md atualizada. Fora do git ficam só venv/caches técnicos (convenção "nada de venv commitado" mantida).
+
 **2026-07-15 — `data/raw/` desta pesquisa é VERSIONADO no git** (decisão do usuário, exceção à regra 4 do CLAUDE.md registrada lá e no .gitignore): o repo será compartilhado com um colaborador que rodará fases da pesquisa e precisa dos mesmos CSVs. Derivados regeneráveis (parquet, cache, sealed) continuam gitignorados. Export do usuário recebido em 2026-07-15: 229 arquivos, 549 MB.
 
 ## Pendências que dependem do usuário (👤)
