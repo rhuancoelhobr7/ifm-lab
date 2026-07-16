@@ -23,7 +23,8 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Testes unitários com fixtures sintéticas verdes (pytest) (tests)
 - [x] Parquet de métricas M30–D1 + W1/MN gerado (scripts/e02_gerar_metricas.py, PROGRESS.md)
 ### E3 — Paridade · PORTÃO P1
-- [ ] 👤 Export do replay do indicador entregue
+- [x] Ferramenta de export do replay criada (cópia literal do cálculo v1.0) (tools/export_golden/ExportGoldenIFM.mq5, tools/export_golden/README.md)
+- [ ] 👤 Export do replay do indicador entregue (golden antigos descartados — origem desconhecida; ver PROGRESS 2026-07-16)
 - [ ] Relatório results/E03_paridade.md no formato checklist C1
 - [ ] 🚪 P1: 👤 paridade APROVADA
 ### E4 — Gabarito + banco-mãe · PORTÃO P2 (duplo)
