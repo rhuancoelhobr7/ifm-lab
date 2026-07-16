@@ -154,7 +154,7 @@ sessions:
   #   Londres ~12h e NY ~18h server — NÃO batem com a teoria (~10h e ~15h no
   #   verão) nem com os próprios candles citados (9º ≈ 8–9h, 18º ≈ 17–18h).
   calibracao_server:
-    # CONGELADO no E1 (2026-07-15, decidido por Léo). Evidência:
+    # CONGELADO no E1 (2026-07-15, decidido por Carlos Eduardo). Evidência:
     # results/E01_sessoes_assinatura.png + verificação verão×inverno da sessão E1.
     # Medição: o servidor segue o DST EUROPEU (GMT+3 verão / GMT+2 inverno,
     # offset_server_gmt_h=3.0 no _manifest.csv de julho). Consequência: Londres
@@ -185,7 +185,7 @@ event:
       nunca_recua_abaixo_pct: 10 # ...e nunca mais recua abaixo de 10%
     a_rompimento:
       definicao: "último cruzamento do preço da cesta pelo nível de abertura do dia antes do trecho final do movimento"
-  # 🚪 P2a CARIMBADO (2026-07-16, Léo): auditoria C2 sobre os 20 dias de
+  # 🚪 P2a CARIMBADO (2026-07-16, Carlos Eduardo): auditoria C2 sobre os 20 dias de
   # results/E04a_amostras/ — "gostei de todas as âncoras" (20/20 nas duas);
   # escolhida a A-ROMPIMENTO (a mais cedo). Resolução: caminho M30 uniforme
   # (adendo P2a). CONGELADO — mexer na régua depois disso é proibido.

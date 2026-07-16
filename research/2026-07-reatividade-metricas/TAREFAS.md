@@ -3,7 +3,7 @@
 Legenda: [ ] pendente · [~] em andamento · [x] concluída (evidência) · [!] bloqueada (motivo) · [-] cancelada (motivo)
 Regras: checkbox só marca com evidência · portões P1–P4 só marcam com decisão do usuário no PROGRESS.md
 Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências + portões + template didático §1.2)
-Última atualização: 2026-07-16 · sessão E4a (gabarito — Léo)
+Última atualização: 2026-07-16 · sessão E4a (gabarito — claude de Carlos Eduardo)
 
 ## BLOCO A — Fundação
 ### E0 — Setup

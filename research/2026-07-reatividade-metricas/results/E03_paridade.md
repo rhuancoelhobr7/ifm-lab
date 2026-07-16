@@ -89,7 +89,7 @@ Obtivemos: ver tabela acima → **✔ PARIDADE APROVADA**.
 
 ## O que isso muda
 
-O portão P1 pode ser carimbado (Rhuan ou Léo, registrado no PROGRESS.md): toda a pesquisa passa a confiar na calculadora Python — libera extensão M5/M15 e E4 (gabarito + banco).
+O portão P1 pode ser carimbado (Rhuan ou Carlos Eduardo, registrado no PROGRESS.md): toda a pesquisa passa a confiar na calculadora Python — libera extensão M5/M15 e E4 (gabarito + banco).
 
 ## Limitações
 
