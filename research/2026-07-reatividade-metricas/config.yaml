@@ -33,6 +33,13 @@ indicator:
   zmov_days_n: 20            # InpZMovN — dias do z histórico do movATR (zMov/zHist)
   cci_length: 20             # InpCCILength (núcleo clássico; referência)
   atr_length: 14             # ATR14 usado no movATR e nos alvos
+  # Adicionados na E2 (2026-07-15): parâmetros do fonte que faltaram na
+  # extração do E0 — documentação, não mudança de método.
+  ema_fallback_len: 21       # InpEMAFallbackLen — EMA do juiz Market Profile.
+                             # ⚠ Juiz MP é CÓDIGO MORTO no IFM Light: o guard
+                             # exige 3×21+2=65 barras e a janela é capada em 60
+                             # → voto sempre 0 (arqueologia registrada na E2).
+  mfc_vol_length: 20         # InpMFCVolLength — média de volume do juiz MFC
   thresholds_atuais:         # a regra binária "candidata" = baseline a bater
     zvel_abs: 2.0            # InpZThrVel
     zs_abs: 1.0              # InpZThrS
@@ -79,6 +86,8 @@ pairs:
 
 mt5:
   server_timezone: "UTC+3 verão / UTC+2 inverno (DST europeu; medido no E1)"
+  conta_servidor: "MetaQuotes-Demo"   # trava de proveniência do pipeline (E2):
+                                      # scripts recusam data/raw/ de outra conta
   symbol_suffix: ""          # ⏳ preencher no E1 se o broker usar sufixo (ex.: ".r")
   spread_historico: false    # MT5 não fornece spread histórico em barras (limitação
                              # documentada no esboço Q10) → custo por par vira
