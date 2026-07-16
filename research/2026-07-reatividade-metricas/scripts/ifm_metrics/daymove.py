@@ -25,11 +25,11 @@ dias). Só difere quando um par pula um dia D1 que os outros têm — nesses dia
 o painel mistura datas diferentes entre pares e nós marcamos NaN (mais
 conservador). Conferir no E3 se algum desvio de paridade cai nesses dias.
 
-BUG-FOR-BUG (decisão P1, 2026-07-16, PROGRESS): o painel AO VIVO exibe, no
-dia D, o movimento do dia D−1 até a mesma hora (off-by-one do MetAnchorShift
-no D1 — descoberta 4 do PROGRESS). Reproduzimos esse comportamento: o z
+SEMÂNTICA OFICIAL (decisão P1 + veredito de 2026-07-16, PROGRESS): o painel
+exibe, no dia D, o movimento do **último dia D1 fechado** (D−1) até a mesma
+hora — e essa é a semântica OFICIAL do indicador (IFM v1.1 declarou o código
+como referência e corrigiu o GUIA §10, não o cálculo). Reproduzimos: o z
 calculado para o dia D é carimbado nas âncoras do dia SEGUINTE (`empilhar`).
-Se o indicador for corrigido (v1.0.1), reverter o deslocamento aqui.
 """
 
 from __future__ import annotations

@@ -210,8 +210,11 @@ string TfStr(ENUM_TIMEFRAMES tf)
 int ShiftForTF(ENUM_TIMEFRAMES tf)
 {
    if(!g_replayOn) return 1;
-   int bars = Bars(_Symbol, tf, g_replayTime, TimeCurrent());
-   return MathMax(1, bars);
+   int sh = MathMax(1, Bars(_Symbol, tf, g_replayTime, TimeCurrent()));
+   datetime bo = iTime(_Symbol, tf, sh);
+   if(bo > 0 && (long)bo + PeriodSeconds(tf) > (long)g_replayTime)
+      sh++;   // barra ainda formando em g_replayTime -> recua p/ a última FECHADA
+   return sh;
 }
 
 // Atualiza g_replayTime a partir do g_replayShift atual
@@ -227,8 +230,11 @@ void SyncReplayTime()
 int MetAnchorShift(string sym, ENUM_TIMEFRAMES tf)
 {
    if(!g_replayOn) return 1;
-   int bars = Bars(sym, tf, g_replayTime, TimeCurrent());
-   return MathMax(1, bars);
+   int sh = MathMax(1, Bars(sym, tf, g_replayTime, TimeCurrent()));
+   datetime bo = iTime(sym, tf, sh);
+   if(bo > 0 && (long)bo + PeriodSeconds(tf) > (long)g_replayTime)
+      sh++;   // barra ainda formando em g_replayTime -> recua p/ a última FECHADA
+   return sh;
 }
 
 
@@ -918,6 +924,8 @@ void MetRebuild()
 
    // zMov / zMovH: z-scores do movimento de cesta desde 00:00 em ATRs.
    // Cada dia passado é medido ATÉ A MESMA HORA decorrida do dia atual.
+   // Dia 0 = a última barra D1 FECHADA (intradiário: ontem) — semântica
+   // OFICIAL do cálculo (decisão 2026-07-16; o GUIA §10 a descreve).
    {
       datetime barT = iTime(g_pair[0], PERIOD_M30, MetAnchorShift(g_pair[0], PERIOD_M30));
       datetime dayStart = barT - (datetime)((long)barT % 86400);
