@@ -60,11 +60,11 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Camadas descartadas/mantidas via C9 (results/E07_cascata.md)
 - [x] results/E07_*.md + entradas candidatas a LEITURA.md (results/E07_contexto.md, results/E07_cascata.md)
 ### E8 — Persistência e ciclos de sessão (Q8+Q9)
-- [ ] Vida restante pós-disparo + custo do atraso do trader
-- [ ] Half-life de S por moeda × TF de detecção
-- [ ] Fases por regras + validação HMM + matriz de transição por sessão
-- [ ] Relógio das sessões (nascimento/morte de tendências) + sazonalidade
-- [ ] results/E08_*.md + entradas candidatas a LEITURA.md
+- [x] Vida restante pós-disparo + custo do atraso do trader (results/E08_sessoes.md)
+- [x] Half-life de S por moeda × TF de detecção (results/E08_sessoes.md)
+- [~] Fases por regras + matriz de transição por sessão FEITAS; validação por k-means no lugar do HMM (hmmlearn sem wheel p/ Py3.14 Windows — rodar na máquina Linux se quisermos o HMM; results/E08_sessoes.md)
+- [x] Relógio das sessões (nascimento/morte de tendências) + sazonalidade (results/E08_sessoes.md)
+- [x] results/E08_*.md + entradas candidatas a LEITURA.md (results/E08_sessoes.md)
 ### E9 — Quadrantes e combinações dirigidas (Q4 camadas 1–2)
 - [ ] Tabela 2×2 zS × zvel por TF × sessão (quatro notas)
 - [ ] Duplas/trios nomeados testados (sob C11)
