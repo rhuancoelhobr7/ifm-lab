@@ -1,4 +1,4 @@
-# Guia Completo — IFM (Índice de Força da Moeda) v1.0
+# Guia Completo — IFM (Índice de Força da Moeda) v1.1
 
 > **Arquivo:** `IFM.mq5` · **Tipo:** Indicador MetaTrader 5 (subjanela) · **Nome interno:** *IFM*
 
@@ -453,22 +453,22 @@ A tabela principal (esquerda do painel). Mantém, por moeda × TF, um **ring de 
 | **vel** | `S(t0) − S(t0−k)`, k=`InpMetVelK`(6) | Velocidade: quanto a força mudou nas últimas 6 barras do TF. |
 | **zvel** | `vel / (σ(ΔS) × √k)`, σ sobre `InpZVelN`(32) passos | Velocidade **normalizada como passeio aleatório**: ≥2.0 (dourado) significa "esse deslocamento teria ~5% de chance de ser só ruído". |
 | **acel** | `[S(t0)−S(t0−k)] − [S(t0−k)−S(t0−2k)]` + ↑/↓ | O movimento está ganhando (↑) ou perdendo (↓) gás. |
-| **zMov** | Z transversal do movimento do dia em ATRs (`g_metZMov`) | Quem mais andou **hoje** (desde 00:00) em relação às outras moedas. ★ dourada = líder absoluto do dia. |
-| **zHist** | Z do movimento de hoje vs. os mesmos horários dos últimos `InpZMovN`(20) dias (`g_metZMovH`) | O dia de hoje é normal ou excepcional **para essa própria moeda**? ≥2 vira dourado. |
+| **zMov** | Z transversal do movimento diário em ATRs (`g_metZMov`) | Quem mais andou no **último dia D1 fechado** (intradiário: ontem, desde as 00:00 daquele dia até a mesma hora de agora) em relação às outras moedas. ★ dourada = líder absoluto. |
+| **zHist** | Z do movimento do dia de referência vs. os mesmos horários dos `InpZMovN`(20) dias anteriores (`g_metZMovH`) | Esse dia foi normal ou excepcional **para essa própria moeda**? ≥2 vira dourado. |
 | **cesta** | Pares confirmando o lado de S / total (ex.: `6/7`) | Unanimidade da cesta: 7/7 = todos os 7 pares concordam com a direção da moeda. |
 | **mtf** | ▲▲▲△ — TFs (M30/H1/H4/D1) alinhados com o lado do H1 | Setas cheias = TFs concordando; ocas = não. ✕ vermelho = VETO ativo. |
 
 > 💡 **zvel, o conceito-chave:** a força S sempre balança um pouco. O `zvel` pergunta: *"esse balanço das últimas 6 barras é grande comparado ao balanço típico?"*. Ele divide o deslocamento pelo "ruído esperado" (o desvio-padrão dos passos × √k, que é como ruído puro se acumula). zvel = 2 significa um movimento 2 desvios acima do esperado por acaso — provável movimento *de verdade*.
 
-> 💡 **zMov vs. zHist:** zMov compara a moeda **com as irmãs** ("quem correu mais hoje?"); zHist compara a moeda **com ela mesma** ("hoje está sendo um dia atípico para ela?"). O zHist é medido *até a mesma hora do dia* em cada dia passado — comparar as 10h de hoje com dias completos seria injusto. Ambos medem o movimento em ATRs diários (log-retorno ÷ ATR14/preço), tornando moedas de volatilidades diferentes comparáveis.
+> 💡 **zMov vs. zHist:** zMov compara a moeda **com as irmãs** ("quem correu mais no dia de referência?"); zHist compara a moeda **com ela mesma** ("esse dia foi atípico para ela?"). O **dia de referência é o último dia D1 fechado** — durante o pregão de hoje, ontem — e todos os dias (o de referência e os do histórico) são medidos *até a mesma hora decorrida de agora*: comparar as 10h com dias completos seria injusto. Ambos medem o movimento em ATRs diários (log-retorno ÷ ATR14/preço), tornando moedas de volatilidades diferentes comparáveis.
 
 ### Cálculo detalhado do zMov/zHist (`MetRebuild`, bloco final)
 
 1. Âncora: última barra M30 fechada; `tod` = segundos decorridos do dia até o *fechamento* dessa barra.
-2. Para cada par e cada dia `i` (0 = hoje, 1…N passados): retorno logarítmico entre 00:00 e `00:00 + tod`, dividido pelo ATR14 diário relativo → `r`.
+2. Para cada par e cada dia `i` (0 = dia de referência, 1…N anteriores): retorno logarítmico entre 00:00 e `00:00 + tod`, dividido pelo ATR14 diário relativo → `r`. O dia 0 é a **última barra D1 fechada** — durante o pregão de hoje, **ontem** — medido até a mesma hora decorrida de agora. *(Semântica oficial do cálculo, confirmada na paridade E3 da pesquisa `2026-07-reatividade-metricas` e registrada como decisão em 2026-07-16: até a v1.0 este guia descrevia o dia 0 como "hoje" — imprecisão do documento, não do código.)*
 3. `r` é creditado/debitado nas duas moedas do par (mesma lógica do S). Falta de dado em qualquer par macula o dia (`badDay`).
-4. **zHist**: z do valor de hoje contra a média/σ dos dias passados válidos (exige ≥10 dias).
-5. **zMov**: z do valor de hoje contra a média/σ **das 8 moedas hoje** (exige ≥4 moedas válidas).
+4. **zHist**: z do valor do dia de referência contra a média/σ dos dias anteriores válidos (exige ≥10 dias).
+5. **zMov**: z do valor do dia de referência contra a média/σ **das 8 moedas no mesmo dia** (exige ≥4 moedas válidas).
 
 ### Candidata (destaque de linha verde/vermelho)
 
@@ -527,7 +527,7 @@ Topbar de 30 px (`DrawButtons`), sempre redesenhada por último (fica no topo):
 Permite "voltar no tempo" e ver o painel como ele estaria em qualquer barra fechada passada:
 
 - `g_replayShift` = barras para trás no TF do gráfico; `SyncReplayTime` converte para um **timestamp absoluto** (`g_replayTime`).
-- Esse timestamp é a âncora universal: `MetAnchorShift` / `ShiftForTF` o convertem para o shift equivalente em **cada par e cada TF** (via contagem de barras `Bars(...)`) — assim M5 e D1 apontam para o mesmo instante do passado.
+- Esse timestamp é a âncora universal: `MetAnchorShift` / `ShiftForTF` o convertem para o shift equivalente em **cada par e cada TF** (via contagem de barras `Bars(...)` + recuo para a **última barra fechada** até o timestamp) — assim M5 e D1 apontam para o mesmo instante do passado. *(v1.1: até a v1.0 essas funções ancoravam na barra que **contém** o timestamp — nos TFs acima do gráfico isso lia a barra em formação com os valores finais dela, um look-ahead do replay corrigido a partir do diagnóstico E3 da pesquisa `2026-07-reatividade-metricas`.)*
 - Em replay o auto-refresh e a atualização por barra nova **pausam** (âncora fixa).
 
 > 💡 É um "modo VCR" honesto: como o IFM Light só usa barras já fechadas até a âncora, o que você vê no replay é exatamente o que o painel teria mostrado ao vivo naquele momento — ótimo para estudar se os sinais de candidata realmente antecederam movimentos.
