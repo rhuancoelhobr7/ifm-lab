@@ -1,0 +1,17 @@
+chave,valor
+ferramenta,ExportGoldenIFM v1.00 (copia literal de src/IFM.mq5 v1.0)
+gerado_em_local,2026.07.16 09:57:05
+server_time,2026.07.16 16:57:05
+offset_server_gmt_h,3.0
+conta_servidor,MetaQuotes-Demo
+zcore,true
+cci_length,20
+mfc_vol_length,20
+ema_fallback_len,21
+vel_k,6
+zvel_sigma_n,32
+zmov_days_n,20
+pares,28
+ancoras,80
+ancora_base,2025.09.30 23:59
+cross_samples,12 passo 24 barras H1
