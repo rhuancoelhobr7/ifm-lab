@@ -10,7 +10,28 @@ de texto simples (CSV), um arquivo por par×TF — 224 arquivos no total — mai
 `_manifest.csv` que resume o que foi exportado e anota a diferença entre o
 relógio do servidor e o GMT (usada depois para calibrar as sessões).
 
-## Passo a passo (não precisa saber programar)
+## Duas formas de exportar
+
+Há dois exportadores equivalentes (mesmos CSVs, mesmo `_manifest.csv`):
+
+1. **`ExportBarsG8.mq5`** — roda DENTRO do MetaTrader (passo a passo abaixo).
+2. **`export_bars_g8.py`** — roda num terminal Python **na máquina onde o MT5
+   está instalado** (o pacote `MetaTrader5` é Windows-only). Vantagens: escreve
+   direto em `data/raw/` da pesquisa, e tem **trava de servidor** — recusa
+   exportar se a conta logada não for a `MetaQuotes-Demo` exigida pelo
+   `config.yaml` (a lição do reexport reprovado de 2026-07-15).
+
+   ```
+   pip install MetaTrader5 pyyaml
+   python tools/export_bars/export_bars_g8.py              # tudo que falta
+   python tools/export_bars/export_bars_g8.py --tfs M30,H1 --overwrite
+   ```
+   O segundo comando é o da pendência atual: refazer só M30/H1 desde 2021.
+   Com o terminal MT5 aberto e logado na conta certa, é só isso. Se der
+   `FALHA` em algum par×TF, rode de novo (sem `--overwrite`) até zerar —
+   o histórico baixa aos poucos. Ele nunca toca nos `golden_*.csv`.
+
+## Passo a passo do script MQL5 (não precisa saber programar)
 
 1. **Abra o MetaEditor:** no MetaTrader 5, aperte `F4` (ou menu Ferramentas →
    Editor de Linguagem MetaQuotes).
@@ -28,12 +49,16 @@ relógio do servidor e o GMT (usada depois para calibrar as sessões).
    ache `ExportBarsG8` no Navegador (`Ctrl+N`, seção Scripts) e **arraste para o
    gráfico**. Vai abrir a janela de parâmetros — os valores padrão já são os da
    pesquisa (períodos por camada de TF). Clique OK.
-6. **Aguarde.** O progresso aparece no canto superior esquerdo do gráfico
-   (`12/224 EURUSD H1 ...`) e no diário (aba "Especialistas"). A primeira rodada
-   pode demorar: o MT5 baixa histórico aos poucos.
+6. **Aguarde.** O v2.00 trabalha em duas fases por série: primeiro **sincroniza**
+   o histórico (o texto no gráfico mostra "sincronizando EURUSD W1 — 1ª barra
+   local: ... | alvo: 2016.01.01 | restam Ns") e só depois **copia**. Com o
+   cache de histórico frio (primeira vez, ou depois de trocar de servidor), a
+   fase de sincronização é demorada — é o download acontecendo, não travamento.
 7. **Se houver FALHAS** (o resumo final no diário diz quantas): **rode o script
-   de novo**, com o parâmetro "Pular arquivos que ja existem" = `true` (padrão).
-   Ele só refaz o que faltou. Repita até o resumo dizer `0 falhas`.
+   de novo com "Pular arquivos que ja existem" = `true`** — ele retoma só o que
+   faltou. Repita até o resumo dizer `0 falhas`. Séries marcadas `ok_parcial_*`
+   no manifest significam que o broker não tem histórico até o início pedido —
+   o inventário (e01) reporta a cobertura real.
 8. **Pegue os arquivos:** no MetaTrader, Arquivo → **Abrir Pasta de Dados** →
    pasta `MQL5` → `Files` → `IFM_export`. Lá estão os 224 CSVs + `_manifest.csv`.
 9. **Copie tudo** (incluindo o `_manifest.csv`) para:
@@ -55,7 +80,8 @@ relógio do servidor e o GMT (usada depois para calibrar as sessões).
 | Fim | 2026-06-30 | Comum a todos os TFs |
 | TFs a exportar | M5…MN1 | Pode reduzir para reexportar um TF específico |
 | Subpasta | IFM_export | Dentro de MQL5\Files |
-| Pular arquivos que ja existem | true | Rodadas seguintes só completam o que falta |
+| Pular arquivos que ja existem | **false** | Default = exporta tudo do zero; mude para `true` para RETOMAR uma rodada interrompida |
+| Paciencia p/ baixar historico | 300 s | Tempo máximo de sincronização por série antes de aceitar parcial/falhar |
 
 ## Formato dos CSVs
 

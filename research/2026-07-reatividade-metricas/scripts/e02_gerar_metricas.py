@@ -43,7 +43,7 @@ SEALED = RESEARCH / "data" / "sealed"
 
 TFS_PADRAO = ["M30", "H1", "H4", "D1", "W1", "MN1"]   # M5/M15 só após o P1
 TFS_CONTEXTO = ["M30", "H1", "H4", "D1"]              # usados por mtf/VETO
-VERSAO_SCRIPT = "e02-v1"
+VERSAO_SCRIPT = "e02-v2"  # v2: zMov/zHist bug-for-bug (dia anterior; decisao P1 2026-07-16)
 
 
 def carrega_config() -> dict:
@@ -144,9 +144,16 @@ def main() -> int:
     checar_proveniencia(cfg)
     h = hash_config(cfg)
     manifesto = PARQUET / f"E02_manifesto_{h}.json"
+    tfs_feitos: list[str] = []
     if manifesto.exists() and not args.force:
-        print(f"✔ cache válido ({h}) — nada a recomputar (use --force para refazer).")
-        return 0
+        # cache por TF: só recomputa os TFs pedidos que ainda não constam do
+        # manifesto (ex.: extensão M5/M15 pós-P1 sem refazer M30–MN1)
+        tfs_feitos = json.loads(manifesto.read_text(encoding="utf-8")).get("tfs", [])
+        faltam = [t for t in args.tfs if t not in tfs_feitos]
+        if not faltam:
+            print(f"✔ cache válido ({h}) — nada a recomputar (use --force para refazer).")
+            return 0
+        args.tfs = faltam
 
     core_por_tf: dict[str, dict] = {}
     frames_por_tf: dict[str, dict] = {}
@@ -187,7 +194,8 @@ def main() -> int:
         gravar_com_selo(wide, "E02_zmov", cfg, h)
 
     manifesto.write_text(json.dumps(
-        {"hash": h, "versao": VERSAO_SCRIPT, "tfs": args.tfs}, indent=2),
+        {"hash": h, "versao": VERSAO_SCRIPT,
+         "tfs": sorted(set(tfs_feitos) | set(args.tfs))}, indent=2),
         encoding="utf-8")
     print(f"✔ métricas gravadas (hash {h}).")
     return 0

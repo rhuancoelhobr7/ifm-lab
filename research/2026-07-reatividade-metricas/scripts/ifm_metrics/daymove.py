@@ -24,6 +24,12 @@ de barras D1 de cada par; aqui alinhamos por DATA DE CALENDÁRIO (união dos
 dias). Só difere quando um par pula um dia D1 que os outros têm — nesses dias
 o painel mistura datas diferentes entre pares e nós marcamos NaN (mais
 conservador). Conferir no E3 se algum desvio de paridade cai nesses dias.
+
+BUG-FOR-BUG (decisão P1, 2026-07-16, PROGRESS): o painel AO VIVO exibe, no
+dia D, o movimento do dia D−1 até a mesma hora (off-by-one do MetAnchorShift
+no D1 — descoberta 4 do PROGRESS). Reproduzimos esse comportamento: o z
+calculado para o dia D é carimbado nas âncoras do dia SEGUINTE (`empilhar`).
+Se o indicador for corrigido (v1.0.1), reverter o deslocamento aqui.
 """
 
 from __future__ import annotations
@@ -138,14 +144,22 @@ def zmov_zhist(r_moedas: dict[str, pd.DataFrame], n_hist: int
                                  index=idx_dias, columns=range(SLOTS_DIA))
 
     def empilhar(mapa: dict[str, pd.DataFrame]) -> pd.DataFrame:
-        """(dia × slot) → série longa indexada pelo fechamento da âncora."""
+        """(dia × slot) → série longa indexada pelo fechamento da âncora do
+        DIA SEGUINTE (bug-for-bug com o painel AO VIVO, decisão P1 de
+        2026-07-16 no PROGRESS: `MetAnchorShift` devolve shift 1, e no D1
+        intradiário o shift 1 é ONTEM — então o painel exibe, no dia D, o
+        movimento do dia D−1 até a mesma hora; paridade E3 confirmou
+        golden(T) = python(T−1 dia útil) com diferença 0.0)."""
         out = {}
         for cur, f in mapa.items():
             dias = pd.DatetimeIndex(f.index)
-            ts = (np.repeat(dias.to_numpy(), SLOTS_DIA)
+            if len(dias) < 2:
+                out[cur] = pd.Series(dtype=float)
+                continue
+            ts = (np.repeat(dias[1:].to_numpy(), SLOTS_DIA)
                   + np.tile(((np.arange(SLOTS_DIA) + 1) * SEG_SLOT)
-                            .astype("timedelta64[s]"), len(dias)))
-            out[cur] = pd.Series(f.to_numpy().ravel(), index=pd.DatetimeIndex(ts))
+                            .astype("timedelta64[s]"), len(dias) - 1))
+            out[cur] = pd.Series(f.to_numpy()[:-1].ravel(), index=pd.DatetimeIndex(ts))
         return pd.DataFrame(out).sort_index()
 
     return empilhar(zmov), empilhar(zhist)
