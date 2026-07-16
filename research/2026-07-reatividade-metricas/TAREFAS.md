@@ -73,10 +73,10 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 
 ## BLOCO D — Síntese
 ### E10 — Redundância, importância e Score detector (Q11)
-- [ ] Correlações + clustering + VIF → lista de redundâncias (C8)
-- [ ] Escada de modelos de detecção em walk-forward + SHAP + PCA
-- [ ] Fatores novos / camadas de TF avaliados por ganho incremental (C9)
-- [ ] Tabela de pesos métrica × TF + Score 0–100 CONGELADO (results/E10_score.md)
+- [~] Redundâncias C8 medidas por Spearman nos 4 TFs (definição exata do critério; clustering+VIF opcionais pendentes) (results/E10_score.md)
+- [~] Escada logística→LightGBM em walk-forward FEITA; SHAP/PCA sem wheel p/ Py3.14 (estabilidade via sinais da logística; rodar no Linux se quisermos) (results/E10_score.md)
+- [x] Fatores novos / camadas de TF avaliados por ganho incremental (C9) (results/E10_score.md)
+- [x] Tabela de pesos métrica × TF + Score 0–100 CONGELADO (results/E10_score.md, results/E10_score_pesos.csv)
 ### E11 — Teste selado e regras intraday · PORTÃO P4
 - [ ] Abertura ÚNICA de data/sealed/ registrada no PROGRESS.md
 - [ ] Score vs. baseline candidata nas quatro notas (C10)
