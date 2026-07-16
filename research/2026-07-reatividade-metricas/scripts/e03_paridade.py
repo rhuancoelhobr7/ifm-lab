@@ -222,6 +222,24 @@ def main() -> int:
         r = compara(crx[campo], py_v, tipo, c1)
         resumo.append([f"{campo} (cross)"] + fmt(r)); todos_ok &= r["aprovado"]
 
+    # --- diagnóstico zMov/zHist: o indicador AO VIVO usa shift 1 no D1 =
+    # dia ANTERIOR até a mesma hora (MetAnchorShift live retorna 1; o D1 de
+    # hoje é o shift 0, em formação). O Python (daymove) usa o dia CORRENTE.
+    # Linhas informativas (não contam no C1): golden × python(T - 1 dia útil).
+    achado_zmov = False
+    for campo, col in (("zmov", "zmov"), ("zhist", "zhist")):
+        for dias in (1, 3):  # -1 dia útil; segunda-feira → sexta = -3
+            tt = crx["sample_time"] - pd.Timedelta(days=dias)
+            v = pq_z.reindex(tt)
+            col_d = pd.Series([v.iloc[i][f"{col}_{c}"] for i, c in enumerate(crx["currency"])], index=crx.index)
+            if dias == 1:
+                desloc = col_d
+            else:
+                desloc = desloc.where(desloc.notna(), col_d)
+        r = compara(crx[campo], desloc, "rel", c1)
+        resumo.append([f"{campo} (cross, python em T−1 dia útil — DIAGNÓSTICO)"] + fmt(r))
+        achado_zmov |= r["aprovado"]
+
     # --- relatório
     tab = md_tab(resumo, ["campo", "N", "NaN ambos", "NaN só um lado", "% dentro do limiar", "erro máx", "C1"])
     ver = "✔ PARIDADE APROVADA" if todos_ok else "✘ PARIDADE REPROVADA"
@@ -257,6 +275,10 @@ comparáveis, NaN casados/descasados, fração dentro do limiar C1 e o pior desv
 ### Piores desvios de S (para auditoria)
 
 {chr(10).join("- " + p for p in detalhes_piores[:10]) if detalhes_piores else "_Nenhum desvio não-nulo._"}
+
+### Diagnóstico dos focos restantes
+
+{"**zMov/zHist — deslocamento de 1 dia CONFIRMADO nos dados:** as linhas de DIAGNÓSTICO acima mostram que golden(T) = python(T−1 dia útil). 💡 O indicador AO VIVO calcula o zMov do dia ANTERIOR até a mesma hora (o MetAnchorShift devolve shift 1 no D1, e o D1 de hoje é o shift 0 em formação); o Python calcula o dia corrente, como o IFM_GUIA descreve. Não é erro de nenhuma das calculadoras — é uma DIVERGÊNCIA SEMÂNTICA do próprio indicador, registrada no PROGRESS para decisão (bug-for-bug no Python ou correção no indicador)." if achado_zmov else "_(nenhum padrão de deslocamento detectado nas linhas de diagnóstico)_"}
 
 ## Confronto com os critérios
 
