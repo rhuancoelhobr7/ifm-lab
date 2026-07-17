@@ -14,7 +14,17 @@ Entradas podem ser revisadas ou revogadas por pesquisas posteriores — nesse ca
 
 ---
 
-_As 10 entradas abaixo vêm da pesquisa [2026-07-reatividade-metricas](../research/2026-07-reatividade-metricas/) (consolidação E12, 2026-07-16). Régua comum: eventos = tendências diárias reais do gabarito auditado (magnitude ≥ 1 ATR, ≥ 6/7 pares); "detecção" = sinal antes de 50% do movimento consumido; detector de referência = cruzamento direcional de zS ≥ 1.0._
+_As 10 entradas abaixo vêm da pesquisa [2026-07-reatividade-metricas](../research/2026-07-reatividade-metricas/) (consolidação E12, 2026-07-16)._
+
+## 💡 Antes de ler: os termos, em linguagem simples
+
+**Regra "candidata"** — é o **alarme oficial do painel hoje** (a linha da moeda que fica verde ou vermelha na vista MÉTRICAS). Ele só acende quando **cinco condições valem ao mesmo tempo**: |zvel| ≥ 2.0 (a força da moeda deu um salto estatisticamente raro), |zS| ≥ 1.0 (a moeda já descolou do grupo das 8), cesta ≥ 5 de 7 (a maioria dos pares dela confirma a mesma direção), mtf ≥ 2 de 4 (pelo menos dois timeframes apontam juntos) e **sem VETO**. 💡 Pense num alarme de incêndio que só toca quando cinco sensores diferentes concordam simultaneamente: quase nunca toca — e quando toca, o fogo já tomou o prédio. Foi exatamente o que a pesquisa mediu (entrada 3).
+
+**VETO** — o **✕ vermelho**: uma trava de segurança embutida na candidata. Liga quando a moeda está entre as 2 mais fortes do lado dela (ranking H1) **mas** a velocidade dela nos dois prazos maiores (H4 **e** D1) aponta na contramão. A intenção original: impedir você de "comprar o fim da festa" — uma moeda que parece campeã no placar mas já desacelera nos prazos grandes. 💡 O que a pesquisa descobriu é que essa "desaceleração na contramão" costuma ser só o **respiro (pullback) de uma moeda forte**, não o fim da festa — então a trava corta justamente as boas entradas (entrada 4).
+
+**Score 0–100** — **não existe no painel hoje**; foi construído DENTRO da pesquisa (etapa E10) como alternativa à candidata. Em vez do checklist tudo-ou-nada, é uma **nota contínua**: cada métrica do painel (zS, cesta, hora do dia…) contribui com um peso fixo — aprendido por regressão no período de treino e depois **congelado** — e a soma vira uma nota de 0 a 100 que responde "quão parecido este instante é com o começo de uma tendência real?". 💡 A candidata é uma fileira de 5 interruptores em série (um desligado e nada acende); o Score é um *dimmer* que soma evidências parciais. No teste cego ele venceu a candidata com folga, mas ainda erra demais para disparar ordens sozinho — por isso ficou como régua de pesquisa, não entrou no indicador (entrada 10).
+
+**As "quatro notas" (a régua de todas as entradas)** — cada detector foi avaliado como um sismógrafo: **detecção** = % das tendências reais que ele pegou "em tempo útil" (antes de metade do movimento já ter passado); **latência** = minutos entre o início real da tendência (âncora do gabarito) e o sinal; **captura restante** = % do movimento do dia que ainda sobrava quando o sinal acendeu; **precisão** = % dos disparos que caíram DENTRO de uma tendência real (o resto é alarme falso). **"Selado"** = os últimos 9 meses de dados ficaram trancados num cofre e foram abertos UMA única vez, no fim, para o teste cego — o que sobreviveu a ele ganha confiança **alta**; o que só foi visto em treino+validação fica em **média**.
 
 ## 1. Os sinais do painel são alertas de atenção, NÃO gatilhos de entrada
 
@@ -30,13 +40,13 @@ _As 10 entradas abaixo vêm da pesquisa [2026-07-reatividade-metricas](../resear
 
 ## 3. A regra "candidata" atual é conservadora demais — quando acende, a festa acabou
 
-- **O que sabemos:** a candidata (|zvel|≥2 E |zS|≥1 E cesta≥5/7 E mtf≥2/4 E sem VETO) detecta 0–2.6% dos eventos em tempo útil na liga e **0% no selado**. Não usar como sinal de entrada em tendência intraday; a reforma da regra fica marcada como mudança futura do indicador.
+- **O que sabemos:** a candidata (💡 o alarme oficial do painel — ver glossário acima) exige as cinco condições simultâneas, e o preço disso é chegar tarde: detectou 0–2.6% dos eventos em tempo útil na liga e **0% no selado** — em nove meses de teste cego, NENHUMA tendência real foi sinalizada a tempo de operar. O destaque verde/vermelho da linha vale como confirmação tardia de que a tendência existiu, não como convite de entrada; a reforma da regra fica marcada como mudança futura do indicador.
 - **De onde veio:** [E05_corrida](../research/2026-07-reatividade-metricas/results/E05_corrida.md), [E11_selado](../research/2026-07-reatividade-metricas/results/E11_selado.md).
 - **Confiança:** **alta** (confirmado no teste selado).
 
 ## 4. O VETO atrapalha — não use como bloqueio
 
-- **O que sabemos:** nos disparos de moedas top-2 do lado, os VETADOS capturaram mediana 74.2% vs 36.3% dos não-vetados: o VETO corta justamente os pullbacks bons de moedas fortes. A versão graduada (nº de TFs maiores contra) confirma o sentido. Ler o VETO no máximo como informação de contexto, nunca como proibição.
+- **O que sabemos:** o VETO (💡 o ✕ vermelho que anula a candidatura — ver glossário acima) faz o CONTRÁRIO do que promete: nos disparos de moedas top-2 do lado, os VETADOS capturaram mediana 74.2% do movimento restante vs 36.3% dos não-vetados. Ou seja: quando o painel diz "cuidado, fim da festa", na mediana ainda restava três quartos da festa — a desaceleração em H4/D1 que liga o VETO costuma ser o respiro (pullback) de uma moeda forte, o melhor momento de entrada, não o fim. A versão graduada (0/1/2 TFs maiores contra) confirma o sentido. Ler o VETO no máximo como informação de contexto, nunca como proibição.
 - **De onde veio:** [E06_posdisparo](../research/2026-07-reatividade-metricas/results/E06_posdisparo.md).
 - **Confiança:** média (treino+validação; não re-medido no selado — elevar exigiria novo período selado).
 
@@ -72,6 +82,6 @@ _As 10 entradas abaixo vêm da pesquisa [2026-07-reatividade-metricas](../resear
 
 ## 10. A força S tem meia-vida curta e homogênea — e o Score congelado é detector, não sistema
 
-- **O que sabemos:** o desvio de S decai com half-life ~1.5h no M30 e ~0.75h no H1, praticamente igual nas 8 moedas — não existe moeda estruturalmente "lenta"; um S esticado há mais de ~2 half-lifes é história, não sinal. O Score 0–100 (pesos congelados em [E10_score_pesos.csv](../research/2026-07-reatividade-metricas/results/E10_score_pesos.csv)) generalizou no selado como DETECTOR (venceu a baseline pelo C10), mas a regra mínima de execução com custo deu PF 0.78 — é régua de atenção/pesquisa, não sistema de trading.
+- **O que sabemos:** o desvio de S decai com half-life ~1.5h no M30 e ~0.75h no H1 (💡 *half-life* = tempo para metade do "esticão" da força se dissipar sozinho), praticamente igual nas 8 moedas — não existe moeda estruturalmente "lenta"; um S esticado há mais de ~2 half-lifes (≈3h no M30) é história, não sinal. O Score 0–100 (💡 a nota contínua construída na pesquisa — ver glossário acima; pesos congelados em [E10_score_pesos.csv](../research/2026-07-reatividade-metricas/results/E10_score_pesos.csv)) generalizou no teste cego como DETECTOR — apontou tendências reais onde a candidata apontou zero —, mas ao simular entradas com custo perdeu dinheiro (profit factor 0.78, i.e., para cada 1 ATR ganho, 1.28 perdido): é régua de atenção/pesquisa, não sistema de trading.
 - **De onde veio:** [E08_sessoes](../research/2026-07-reatividade-metricas/results/E08_sessoes.md), [E10_score](../research/2026-07-reatividade-metricas/results/E10_score.md), [E11_selado](../research/2026-07-reatividade-metricas/results/E11_selado.md) + decisão P4 no [PROGRESS](../research/2026-07-reatividade-metricas/PROGRESS.md).
 - **Confiança:** half-life média; Score-é-detector-não-sistema **alta** (veredito do selado, P4).
