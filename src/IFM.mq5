@@ -3,7 +3,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "IFM - Índice de Força da Moeda"
 #property link        ""
-#property version     "1.0"
+#property version     "1.2"
 #property description ""
 #property strict
 
@@ -49,7 +49,7 @@ input int             InpMetPersN   = 12;           // N de PERS/EFIC
 input double          InpMetThrVel  = 17.6;         // Limiar destaque |VEL| (F3 p75)
 input double          InpMetThrPers = 0.58;         // Limiar destaque PERS (F3 p75)
 input int             InpMetThrCesta= 5;            // Limiar destaque CESTA (de 7)
-input int             InpMetThrMTF  = 2;            // Limiar destaque MTF (de 4; F3)
+input int             InpMetThrMTF  = 2;            // (v1.2: fora da candidata — mtf so exibicao)
 
 input group           "═══════ Z-Score (variante exploratoria) ═══════"
 input bool            InpZCore      = true;         // Nucleo IFM-Z: CCI = z-score continuo
@@ -57,6 +57,10 @@ input int             InpZVelN      = 32;           // Janela do sigma de dS (zv
 input double          InpZThrVel    = 2.0;          // Limiar destaque |zvel|
 input double          InpZThrS      = 1.0;          // Limiar destaque |zS| (transversal)
 input int             InpZMovN      = 20;           // Dias do z historico do movATR
+
+input group           "═══════ v1.2 — Alerta / Score (pesquisa reatividade) ═══════"
+input bool            InpShowScore  = true;         // Colunas SCORE (E10) e dia% no painel
+input int             InpLateHour   = 15;           // Hora server que esmaece ALERTAS novos (NY)
 
 
 //+------------------------------------------------------------------+
@@ -182,6 +186,8 @@ double g_metS[8][MET_TFN][MET_RING];   // série S cronológica (63 = t0); EMPTY
 double g_metCesta[8][MET_TFN];         // CESTA no t0 de cada TF
 double g_metZMov[8];                   // z TRANSVERSAL do movATR
 double g_metZMovH[8];                  // z HISTORICO do movATR
+double g_metScore[8];                  // SCORE 0-100 (detector E10; base M30, indep. da aba)
+double g_metConsumo[8];                // % do dia típico já consumido (cesta D1/M30)
 bool   g_metDirty  = true;
 
 //--- Cache MATRIZ
@@ -635,20 +641,12 @@ double CalcIFMLightAt(const MqlRates &rates[], int atIdx, int copiedTotal)
       else if(c < pp)           scorePivot = -1;
    }
 
-   //--- Module 2: Market Profile (EMA fallback)
-   int scoreMP = 0;
-   if(copied >= InpEMAFallbackLen * 3 + 2)
-   {
-      double ema0 = EmaFromRates(rates, InpEMAFallbackLen, atIdx,   atIdx + copied);
-      double ema1 = EmaFromRates(rates, InpEMAFallbackLen, atIdx+1, atIdx + copied);
-      double vah  = ema0 * 1.01;
-      double val  = ema0 * 0.99;
-      double c    = rates[atIdx].close;
-      if(c > vah && ema0 > ema1)       scoreMP =  2;
-      else if(c > vah)                 scoreMP =  1;
-      else if(c < val && ema0 < ema1)  scoreMP = -2;
-      else if(c < val)                 scoreMP = -1;
-   }
+   //--- Module 2 (Market Profile): REMOVIDO na v1.2 — era código morto:
+   //    o guard exigia 3×21+2 = 65 barras com a janela capada em LIGHT_WINDOW
+   //    (60) → o voto era SEMPRE 0 (arqueologia E2 da pesquisa 2026-07).
+   //    A escala ±15 da agregação é MANTIDA (continuidade numérica: S idêntico
+   //    ao v1.0/v1.1 e à paridade P1 da pesquisa). O guard de barras mínimas
+   //    acima também mantém InpEMAFallbackLen DE PROPÓSITO (mesmo motivo).
 
    //--- Module 3: MFC
    int scoreMFC = 0;
@@ -685,8 +683,9 @@ double CalcIFMLightAt(const MqlRates &rates[], int atIdx, int copiedTotal)
       }
    }
 
-   //--- Aggregation: Pivot×2 + MP×2 + MFC×1 + CCI×3 = max ±15
-   double bruto = scorePivot * 2.0 + scoreMP * 2.0 + scoreMFC * 1.0 + scoreCCI * 3.0;
+   //--- Aggregation: Pivot×2 + MFC×1 + CCI×3 (escala ±15 mantida — o slot do
+   //    MP morto continua contando no denominador para preservar os números)
+   double bruto = scorePivot * 2.0 + scoreMFC * 1.0 + scoreCCI * 3.0;
    double ifmFinal = (bruto + 15.0) / 30.0 * 100.0;
    return Clamp(ifmFinal, 0, 100);
 }
@@ -864,6 +863,134 @@ double MetZVel(const double &s[], int k, int n)
    return v / den;
 }
 
+//+------------------------------------------------------------------+
+//|  SCORE 0-100 (v1.2) — pesos CONGELADOS da pesquisa 2026-07        |
+//|  reatividade-metricas, etapa E10 (results/E10_score_pesos.csv).   |
+//|  Score = 100·sigmoide(Σ coef·(x−média)/desvio + intercepto).      |
+//|  Aprovado no teste selado como DETECTOR (C10/P4) — NÃO é sinal    |
+//|  de entrada. NÃO recalibrar sem novo período selado.              |
+//+------------------------------------------------------------------+
+#define SCORE_NF 14
+// ordem das features: zs, zvel, vel, acel, zmov, zhist, cesta, mtf,
+//                     hora, min_sessao, alin_MN1, alin_W1, alin_D1, alin_H4
+double SCORE_MU[SCORE_NF] =
+   {0.836276, 0.2892, 7.77755, 5.676939, 0.000504, -0.005809, 0.764245,
+    2.913547, 0.531649, 0.610749, 0.505671, 0.504983, 0.439879, 0.606155};
+double SCORE_SD[SCORE_NF] =
+   {0.548117, 0.520756, 14.041791, 25.917648, 0.999322, 1.180584, 0.181649,
+    0.879155, 0.260911, 0.261333, 0.499968, 0.499976, 0.496373, 0.488602};
+double SCORE_W[SCORE_NF] =
+   {0.317396, -0.088382, -0.043696, -0.01642, 0.122806, -0.006475, 0.242093,
+    0.124421, -0.557324, -0.054429, -0.113431, 0.078104, -0.160426, 0.258546};
+#define SCORE_B    (-4.990688)   // intercepto
+#define SCORE_CUT  3.4036        // corte p97 congelado, em pontos 0-100
+
+// Frações de coluna da vista MÉTRICAS (12 col. com SCORE/dia%; 10 sem)
+double MET_COLX12[12] = {0.02, 0.09, 0.185, 0.255, 0.325, 0.395, 0.465,
+                         0.535, 0.605, 0.675, 0.765, 0.855};
+double MET_COLX10[10] = {0.02, 0.10, 0.225, 0.315, 0.40, 0.495, 0.585,
+                         0.675, 0.765, 0.865};
+double ColXf(int i) { return InpShowScore ? MET_COLX12[i] : MET_COLX10[i]; }
+
+// --- DST em nível de DIA (paridade com o flag_dst do banco da pesquisa:
+//     dst() da meia-noite da data). Server = Europe/Athens (DST europeu).
+int DowOf(int y, int m, int d)
+{
+   MqlDateTime st;
+   st.year = y; st.mon = m; st.day = d;
+   st.hour = 0; st.min = 0; st.sec = 0;
+   datetime t = StructToTime(st);
+   TimeToStruct(t, st);
+   return st.day_of_week;
+}
+
+int LastSundayDom(int y, int m)
+{
+   for(int d = 31; d >= 25; d--)
+      if(DowOf(y, m, d) == 0) return d;
+   return 25;
+}
+
+int NthSundayDom(int y, int m, int n)
+{
+   int seen = 0;
+   for(int d = 1; d <= 28; d++)
+      if(DowOf(y, m, d) == 0) { seen++; if(seen == n) return d; }
+   return 1;
+}
+
+// DST europeu ativo na meia-noite da data? (vira no último domingo de mar/out)
+bool EuDstDay(int y, int m, int d)
+{
+   if(m < 3 || m > 10) return false;
+   if(m > 3 && m < 10) return true;
+   if(m == 3)  return d > LastSundayDom(y, 3);
+   return d <= LastSundayDom(y, 10);          // outubro
+}
+
+// DST americano ativo na meia-noite da data? (2º dom/mar → 1º dom/nov)
+bool UsDstDay(int y, int m, int d)
+{
+   if(m < 3 || m > 11) return false;
+   if(m > 3 && m < 11) return true;
+   if(m == 3)  return d > NthSundayDom(y, 3, 2);
+   return d <= NthSundayDom(y, 11, 1);        // novembro
+}
+
+// Sessão/minutos/hora da barra FECHADA em barClose (hora do servidor).
+// Slots de 30 min com prioridade Tóquio > Londres > NY e janelas calibradas
+// no E1 da pesquisa (Tóquio desliza com o DST europeu; NY com o descasamento
+// EUA×Europa). sessIdx: 0=Tóquio 1=Londres 2=NY, -1=fora.
+void SessionOf(datetime barClose, int &sessIdx, double &minSess, double &horaFrac)
+{
+   long sec = (long)barClose % 86400;
+   horaFrac = MathFloor((double)sec / 3600.0) / 24.0;   // t.hour/24 (do fechamento)
+   datetime day = barClose - (datetime)sec;
+   int slot = (int)(sec / 1800) - 1;
+   if(slot < 0) { slot = 47; day -= 86400; }
+   MqlDateTime st;
+   TimeToStruct(day, st);
+   bool eu = EuDstDay(st.year, st.mon, st.day);
+   bool us = UsDstDay(st.year, st.mon, st.day);
+   int tqIni = eu ? 6 : 4;                    // 09:00 Tóquio em hora server
+   int tqFim = tqIni + 18;                    // 9h de sessão = 18 slots
+   int loIni = 20, loFim = 38;                // Londres: estável (DST UK = EU)
+   int nyIni = 2 * (12 + (us ? 0 : 1) + (eu ? 3 : 2));   // 08:00 NY -> server
+   int nyFim = MathMin(nyIni + 18, 48);
+   sessIdx = -1;
+   int ini = 0;
+   if(slot >= nyIni && slot < nyFim) { sessIdx = 2; ini = nyIni; }
+   if(slot >= loIni && slot < loFim) { sessIdx = 1; ini = loIni; }
+   if(slot >= tqIni && slot < tqFim) { sessIdx = 0; ini = tqIni; }
+   minSess = (sessIdx >= 0) ? (slot - ini + 1) * 30.0 : 0.0;
+}
+
+// Força S por moeda no t0 de um TF fora do ring (W1/MN1 — contexto do Score).
+// Mesma regra de NaN do ring: só vale com TODOS os pares da moeda presentes.
+void CtxStrength(ENUM_TIMEFRAMES tf, double &out[])
+{
+   double acc[8];
+   int okc[8];
+   ArrayInitialize(acc, 0.0);
+   ArrayInitialize(okc, 0);
+   for(int p = 0; p < g_pairsN && p < MET_MAXP; p++)
+   {
+      int anchor = MetAnchorShift(g_pair[p], tf);
+      MqlRates rates[];
+      ArraySetAsSeries(rates, true);
+      int copied = CopyRates(g_pair[p], tf, anchor, LIGHT_WINDOW, rates);
+      if(copied < LIGHT_WINDOW) continue;     // janela incompleta => par não conta
+      double ifm = CalcIFMLightAt(rates, 0, copied);
+      double dir = (ifm - 50.0) / 50.0;
+      acc[g_baseIdx[p]]  += dir;  okc[g_baseIdx[p]]++;
+      acc[g_quoteIdx[p]] -= dir;  okc[g_quoteIdx[p]]++;
+   }
+   for(int c = 0; c < 8; c++)
+      out[c] = (g_cnt[c] > 0 && okc[c] == g_cnt[c])
+               ? 50.0 + (acc[c] / g_cnt[c]) * 50.0
+               : EMPTY_VALUE;
+}
+
 // Rebuild completo do ring: por par/TF, UMA cópia de 60+64-1 barras e IFM em
 // todos os offsets do mesmo array. Âncora = última barra FECHADA (shift 1).
 void MetRebuild()
@@ -935,9 +1062,16 @@ void MetRebuild()
       double movDay[8][40];
       int    cntDay[8][40];
       bool   badDay[8][40];
+      double movFull[8][40];        // v1.2: movimento do dia CHEIO (p/ o típico)
+      double movHoje[8];            // v1.2: movimento do dia CORRENTE até a âncora
+      int    cntHoje[8];
+      bool   badHoje[8];
       for(int c = 0; c < 8; c++)
+      {
+         movHoje[c] = 0.0; cntHoje[c] = 0; badHoje[c] = false;
          for(int i = 0; i <= nH; i++)
-         { movDay[c][i] = 0.0; cntDay[c][i] = 0; badDay[c][i] = false; }
+         { movDay[c][i] = 0.0; cntDay[c][i] = 0; badDay[c][i] = false; movFull[c][i] = 0.0; }
+      }
 
       for(int p = 0; p < g_pairsN && p < MET_MAXP; p++)
       {
@@ -947,7 +1081,7 @@ void MetRebuild()
             int d1sh = shD + i;
             datetime ds = iTime(g_pair[p], PERIOD_D1, d1sh);
             bool pOk = (ds > 0);
-            double r = 0;
+            double r = 0, rFull = 0;
             if(pOk)
             {
                double atr = 0; int nOk = 0;
@@ -964,12 +1098,52 @@ void MetRebuild()
                int sh1 = iBarShift(g_pair[p], PERIOD_M30, (datetime)((long)ds + tod - 1), false);
                double c0 = (sh0 >= 0) ? iClose(g_pair[p], PERIOD_M30, sh0) : 0.0;
                double c1 = (sh1 >= 0) ? iClose(g_pair[p], PERIOD_M30, sh1) : 0.0;
-               pOk = (nOk == 14 && refC > 0 && c0 > 0 && c1 > 0 && atr > 0);
-               if(pOk) r = MathLog(c1 / c0) / ((atr / 14.0) / refC);
+               double cD = iClose(g_pair[p], PERIOD_D1, d1sh);   // v1.2: fechamento do dia CHEIO
+               pOk = (nOk == 14 && refC > 0 && c0 > 0 && c1 > 0 && cD > 0 && atr > 0);
+               if(pOk)
+               {
+                  double band = (atr / 14.0) / refC;
+                  r     = MathLog(c1 / c0) / band;
+                  rFull = MathLog(cD / refC) / band;
+               }
             }
-            if(pOk) { movDay[g_baseIdx[p]][i] += r;  cntDay[g_baseIdx[p]][i]++;
-                      movDay[g_quoteIdx[p]][i] -= r; cntDay[g_quoteIdx[p]][i]++; }
+            if(pOk) { movDay[g_baseIdx[p]][i] += r;      cntDay[g_baseIdx[p]][i]++;
+                      movDay[g_quoteIdx[p]][i] -= r;     cntDay[g_quoteIdx[p]][i]++;
+                      movFull[g_baseIdx[p]][i] += rFull;
+                      movFull[g_quoteIdx[p]][i] -= rFull; }
             else    { badDay[g_baseIdx[p]][i] = true; badDay[g_quoteIdx[p]][i] = true; }
+         }
+
+         // v1.2 — dia CORRENTE (em formação) até a âncora M30: consumo do dia.
+         // "Preço atual" = fechamento da âncora M30 do par (respeita o replay;
+         // sem look-ahead). Referência = fechamento do dia anterior, como no zMov.
+         {
+            int shT = shD - 1;
+            datetime dsT = (shT >= 0) ? iTime(g_pair[p], PERIOD_D1, shT) : 0;
+            bool tOk = (dsT > 0);
+            double rT = 0;
+            if(tOk)
+            {
+               double atr = 0; int nOk = 0;
+               for(int j = shT + 1; j <= shT + 14; j++)
+               {
+                  double hi = iHigh(g_pair[p], PERIOD_D1, j), lo = iLow(g_pair[p], PERIOD_D1, j);
+                  double pc = iClose(g_pair[p], PERIOD_D1, j + 1);
+                  if(hi <= 0 || lo <= 0 || pc <= 0) break;
+                  atr += MathMax(hi - lo, MathMax(MathAbs(hi - pc), MathAbs(lo - pc)));
+                  nOk++;
+               }
+               double refC = iClose(g_pair[p], PERIOD_D1, shT + 1);
+               int sh0 = iBarShift(g_pair[p], PERIOD_M30, dsT - 1, false);
+               int shN = MetAnchorShift(g_pair[p], PERIOD_M30);
+               double c0 = (sh0 >= 0) ? iClose(g_pair[p], PERIOD_M30, sh0) : 0.0;
+               double cN = iClose(g_pair[p], PERIOD_M30, shN);
+               tOk = (nOk == 14 && refC > 0 && c0 > 0 && cN > 0 && atr > 0);
+               if(tOk) rT = MathLog(cN / c0) / ((atr / 14.0) / refC);
+            }
+            if(tOk) { movHoje[g_baseIdx[p]] += rT;  cntHoje[g_baseIdx[p]]++;
+                      movHoje[g_quoteIdx[p]] -= rT; cntHoje[g_quoteIdx[p]]++; }
+            else    { badHoje[g_baseIdx[p]] = true; badHoje[g_quoteIdx[p]] = true; }
          }
       }
 
@@ -1003,6 +1177,102 @@ void MetRebuild()
       double sd8 = (m8 >= 4) ? MathSqrt(MathMax(ss8 / m8 - mean8 * mean8, 0.0)) : 0.0;
       for(int c = 0; c < 8; c++)
          g_metZMov[c] = (ok0[c] && sd8 > 1e-9) ? (m0[c] - mean8) / sd8 : EMPTY_VALUE;
+
+      // v1.2 — consumo do dia: |movimento de HOJE até agora| ÷ média dos
+      // |dias cheios| válidos (últimos nH). 💡 O relógio de exaustão da
+      // pesquisa (E6/E8): captura restante despenca conforme o dia se consome.
+      for(int c = 0; c < 8; c++)
+      {
+         g_metConsumo[c] = EMPTY_VALUE;
+         if(badHoje[c] || g_cnt[c] == 0 || cntHoje[c] != g_cnt[c]) continue;
+         double sumF = 0; int mF = 0;
+         for(int i = 0; i < nH; i++)
+         {
+            if(badDay[c][i] || cntDay[c][i] != g_cnt[c]) continue;
+            sumF += MathAbs(movFull[c][i]); mF++;
+         }
+         if(mF < 10 || sumF < 1e-9) continue;
+         g_metConsumo[c] = MathAbs(movHoje[c]) / (sumF / mF) * 100.0;
+      }
+   }
+
+   // --- v1.2: SCORE 0-100 (E10) — base M30, mesma linha de features da
+   //     pesquisa; qualquer feature indisponível (NaN) => Score indefinido.
+   for(int c = 0; c < 8; c++) g_metScore[c] = EMPTY_VALUE;
+   if(InpShowScore)
+   {
+      double sW1[8], sMN[8];
+      CtxStrength(PERIOD_W1, sW1);
+      CtxStrength(PERIOD_MN1, sMN);
+
+      // z transversal do S no M30 (mesma regra do render: >= 4 moedas válidas)
+      double sum30 = 0, ss30 = 0; int m30 = 0;
+      for(int c = 0; c < 8; c++)
+      {
+         double sv = g_metS[c][TF_M30_IDX][MET_RING-1];
+         if(MetIsNan(sv)) continue;
+         sum30 += sv; ss30 += sv * sv; m30++;
+      }
+      double mean30 = (m30 > 0) ? sum30 / m30 : 50.0;
+      double sd30 = (m30 >= 4) ? MathSqrt(MathMax(ss30 / m30 - mean30 * mean30, 0.0)) : 0.0;
+
+      // relógio da âncora M30 (hora do fechamento + minutos da sessão)
+      datetime barT30 = (g_pairsN > 0)
+                        ? iTime(g_pair[0], PERIOD_M30, MetAnchorShift(g_pair[0], PERIOD_M30)) : 0;
+      int sessIdx = -1; double minSess = 0, horaFrac = 0;
+      if(barT30 > 0)
+         SessionOf(barT30 + PeriodSeconds(PERIOD_M30), sessIdx, minSess, horaFrac);
+
+      if(m30 >= 4 && sd30 > 1e-9 && sessIdx >= 0)   // fora do dia de negociação: sem Score
+      for(int c = 0; c < 8; c++)
+      {
+         double serie[MET_RING];
+         for(int j = 0; j < MET_RING; j++) serie[j] = g_metS[c][TF_M30_IDX][j];
+         double s0 = serie[MET_RING-1];
+         if(MetIsNan(s0)) continue;
+         double zs = (s0 - mean30) / sd30;
+         int lado = MetSign(zs);
+         if(lado == 0) continue;
+         double vel   = MetVel(serie, InpMetVelK);
+         double acel  = MetAcel(serie, InpMetVelK);
+         double zvel  = MetZVel(serie, InpMetVelK, InpZVelN);
+         double cesta = g_metCesta[c][TF_M30_IDX];
+         double zmv   = g_metZMov[c];
+         double zmh   = g_metZMovH[c];
+         double sH1   = g_metS[c][TF_H1_IDX][MET_RING-1];
+         double sH4   = g_metS[c][TF_H4_IDX][MET_RING-1];
+         double sD1   = g_metS[c][TF_D1_IDX][MET_RING-1];
+         if(MetIsNan(vel) || MetIsNan(acel) || MetIsNan(zvel) || MetIsNan(cesta) ||
+            MetIsNan(zmv) || MetIsNan(zmh) || MetIsNan(sH1) || MetIsNan(sH4) ||
+            MetIsNan(sD1) || MetIsNan(sW1[c]) || MetIsNan(sMN[c])) continue;
+         int refSide = MetSign(sH1 - 50.0);
+         if(refSide == 0) continue;                  // mtf indefinido
+         int mtf = 0;
+         for(int t2 = TF_M30_IDX; t2 <= TF_D1_IDX; t2++)
+         {
+            double sv = g_metS[c][t2][MET_RING-1];
+            if(!MetIsNan(sv) && MetSign(sv - 50.0) == refSide) mtf++;
+         }
+         double x[SCORE_NF];
+         x[0]  = zs * lado;                          // features assinadas pelo lado
+         x[1]  = zvel * lado;
+         x[2]  = vel * lado;
+         x[3]  = acel * lado;
+         x[4]  = zmv * lado;
+         x[5]  = zmh * lado;
+         x[6]  = cesta;                              // fração 0-1
+         x[7]  = mtf;
+         x[8]  = horaFrac;
+         x[9]  = minSess / 540.0;
+         x[10] = (MetSign(sMN[c] - 50.0) == lado) ? 1.0 : 0.0;
+         x[11] = (MetSign(sW1[c] - 50.0) == lado) ? 1.0 : 0.0;
+         x[12] = (MetSign(sD1 - 50.0) == lado) ? 1.0 : 0.0;
+         x[13] = (MetSign(sH4 - 50.0) == lado) ? 1.0 : 0.0;
+         double z = SCORE_B;
+         for(int f = 0; f < SCORE_NF; f++)
+            z += SCORE_W[f] * (x[f] - SCORE_MU[f]) / SCORE_SD[f];
+         g_metScore[c] = 100.0 / (1.0 + MathExp(-z));
+      }
    }
    g_metDirty = false;
 }
@@ -1066,15 +1336,19 @@ void RenderMetrics(int win, int x, int y, int w, int h)
 
    // Largura útil da tabela: limita para as colunas não "esticarem" demais
    // em janelas muito largas (mantém a leitura compacta à esquerda)
-   int tblW = (int)MathMin((double)(w - pad*2), MathMax(760.0, fs * 92.0));
+   int tblW = InpShowScore
+              ? (int)MathMin((double)(w - pad*2), MathMax(900.0, fs * 108.0))
+              : (int)MathMin((double)(w - pad*2), MathMax(760.0, fs * 92.0));
 
-   // Colunas (frações da largura útil) — col 0 = "#/moeda"
-   string hdr[10] = {"moeda","força","zS","vel","zvel","acel","zMov","zHist","cesta","mtf"};
-   double colX[10] = {0.02, 0.10, 0.225, 0.315, 0.40, 0.495, 0.585, 0.675, 0.765, 0.865};
+   // Colunas (frações da largura útil via ColXf) — col 0 = "#/moeda";
+   // v1.2 acrescenta dia% (consumo) e SCORE (E10) quando InpShowScore
+   int nCols = InpShowScore ? 12 : 10;
+   string hdr[12] = {"moeda","força","zS","vel","zvel","acel","zMov","zHist",
+                     "cesta","mtf","dia%","SCORE"};
    int yHdr = segY + slot + 4;
    Rect(TPFX+"hdbg", win, x+2, yHdr, w-4, slot-1, C'30,32,44', C'30,32,44');
-   for(int i = 0; i < 10; i++)
-      Lbl(TPFX+"ch"+(string)i, win, x + pad + (int)(colX[i]*tblW),
+   for(int i = 0; i < nCols; i++)
+      Lbl(TPFX+"ch"+(string)i, win, x + pad + (int)(ColXf(i)*tblW),
           yHdr + slot/2, hdr[i], COL_TEXT_MUTED, fs-1, ANCHOR_LEFT);
 
    int gridY = yHdr + slot;
@@ -1116,6 +1390,20 @@ void RenderMetrics(int win, int x, int y, int w, int h)
    string up = ShortToString(0x25B2), dn = ShortToString(0x25BC);
    string upH = ShortToString(0x25BD), dnH = ShortToString(0x25B3);  // ocos
 
+   // v1.2 — relógio do ALERTA: hora do fechamento da âncora do TF exibido;
+   // depois de InpLateHour (abertura de NY) o alerta esmaece (pesquisa E6/E8:
+   // captura restante despenca no fim do dia).
+   bool tardeSel = false;
+   if(g_pairsN > 0)
+   {
+      datetime aOpen = iTime(g_pair[0], g_metTFs[tsel], MetAnchorShift(g_pair[0], g_metTFs[tsel]));
+      if(aOpen > 0)
+      {
+         long secC = ((long)aOpen + PeriodSeconds(g_metTFs[tsel])) % 86400;
+         tardeSel = ((int)(secC / 3600) >= InpLateHour);
+      }
+   }
+
    for(int r = 0; r < 8; r++)
    {
       int c = ord[r];
@@ -1147,7 +1435,9 @@ void RenderMetrics(int win, int x, int y, int w, int h)
          }
       }
 
-      // VETO (espelhado p/ moeda fraca): top-2 pelo lado + VEL6 contrária em H4 E D1
+      // VETO (espelhado p/ moeda fraca): top-2 pelo lado + VEL6 contrária em H4 E D1.
+      // v1.2: INFORMATIVO apenas (✕ na coluna mtf) — NÃO anula mais a candidata
+      // (pesquisa E6.2: vetados capturaram 74% vs 36% — o VETO cortava pullbacks bons)
       double sr6H4[MET_RING], sr6D1[MET_RING];
       for(int j = 0; j < MET_RING; j++)
       { sr6H4[j] = g_metS[c][TF_H4_IDX][j]; sr6D1[j] = g_metS[c][TF_D1_IDX][j]; }
@@ -1160,13 +1450,22 @@ void RenderMetrics(int win, int x, int y, int w, int h)
             vetoOn = (refSide > 0) ? (vH4 < 0 && vD1 < 0) : (vH4 > 0 && vD1 > 0);
       }
 
-      // Destaque de candidata (limiares congelados no F3; VETO sobrepõe)
+      // v1.2 — sinal em DOIS NÍVEIS (pesquisa 2026-07 reatividade):
+      // CONFIRMAÇÃO = candidata ENXUTA (sem VETO e sem mtf — ambos reprovados:
+      // VETO corta pullbacks bons, mtf só atrasa) — destaque forte.
+      // ALERTA = |zS| >= limiar com lado definido (o sismógrafo: pega cedo,
+      // com pouca precisão — atenção, NÃO gatilho) — tinta suave; esmaece
+      // depois de InpLateHour (alerta tardio = provável exaustão).
       bool cand = !MetIsNan(zvel) && MathAbs(zvel) >= InpZThrVel &&
                   !MetIsNan(zS) && MathAbs(zS) >= InpZThrS &&
                   !MetIsNan(cesta) && cesta * g_cnt[c] >= InpMetThrCesta - 1e-9 &&
-                  mtfSign >= InpMetThrMTF && !vetoOn && refSide != 0;
+                  !MetIsNan(s0) && MetSign(s0 - 50.0) != 0;
+      bool alerta = !cand && !MetIsNan(zS) && MathAbs(zS) >= InpZThrS &&
+                    !MetIsNan(s0) && MetSign(s0 - 50.0) != 0;
       color rowBg = (r % 2 == 0) ? COL_BG_CARD : C'28,30,40';   // zebra
-      if(cand) rowBg = (MetSign(s0 - 50.0) > 0) ? C'18,62,32' : C'70,26,26';
+      if(cand)        rowBg = (MetSign(s0 - 50.0) > 0) ? C'18,62,32' : C'70,26,26';
+      else if(alerta) rowBg = tardeSel ? C'40,38,26'
+                              : ((MetSign(s0 - 50.0) > 0) ? C'20,42,30' : C'48,26,28');
       Rect(TPFX+"row"+rid, win, x+2, ry0, w-4, ry1-ry0-1, rowBg, rowBg);
 
       int bx = x + pad;
@@ -1174,59 +1473,59 @@ void RenderMetrics(int win, int x, int y, int w, int h)
       int cy = (ry0 + ry1) / 2;
 
       // # rank (posição na aba atual) + moeda
-      Lbl(TPFX+"rk"+rid, win, bx + (int)(colX[0]*iw), cy,
+      Lbl(TPFX+"rk"+rid, win, bx + (int)(ColXf(0)*iw), cy,
           StringFormat("%d", r+1), COL_TEXT_MUTED, fs-2, ANCHOR_LEFT, "Consolas");
-      Lbl(TPFX+"m"+rid, win, bx + (int)(colX[0]*iw) + fs + 6, cy,
+      Lbl(TPFX+"m"+rid, win, bx + (int)(ColXf(0)*iw) + fs + 6, cy,
           g_cur[c], g_colArr[c], fs, ANCHOR_LEFT);
 
       string fTxt = MetIsNan(s0) ? ShortToString(0x2014)
                     : DoubleToString(s0, 1) + (MetSign(s0-50.0) >= 0 ? up : dn);
       color fCol = MetIsNan(s0) ? COL_TEXT_MUTED
                    : (MetSign(s0-50.0) >= 0 ? C'80,220,120' : C'240,90,90');
-      Lbl(TPFX+"f"+rid, win, bx + (int)(colX[1]*iw), cy, fTxt, fCol, fs, ANCHOR_LEFT, "Consolas");
+      Lbl(TPFX+"f"+rid, win, bx + (int)(ColXf(1)*iw), cy, fTxt, fCol, fs, ANCHOR_LEFT, "Consolas");
 
       // Mini-barra de força sob o valor (comprimento = |S-50|/50)
       {
-         int barMax = (int)(colX[2]*iw) - (int)(colX[1]*iw) - 14;
+         int barMax = (int)(ColXf(2)*iw) - (int)(ColXf(1)*iw) - 14;
          int barH2  = MathMax(2, (ry1-ry0)/8);
          int barW2  = MetIsNan(s0) ? 0
                       : (int)MathRound(barMax * MathMin(MathAbs(s0-50.0)/50.0, 1.0));
          color barc = MetIsNan(s0) ? COL_TEXT_MUTED
                       : (s0 >= 50 ? C'66,200,110' : C'235,85,75');
-         Rect(TPFX+"fb"+rid, win, bx + (int)(colX[1]*iw), ry1 - barH2 - 2,
+         Rect(TPFX+"fb"+rid, win, bx + (int)(ColXf(1)*iw), ry1 - barH2 - 2,
               MathMax(barW2,1), barH2, barc, barc);
       }
 
       color zsc = MetIsNan(zS) ? COL_TEXT_MUTED : (zS >= 0 ? C'80,220,120' : C'240,90,90');
-      Lbl(TPFX+"zs"+rid, win, bx + (int)(colX[2]*iw), cy, MetNum(zS, 2, true), zsc, fs, ANCHOR_LEFT, "Consolas");
+      Lbl(TPFX+"zs"+rid, win, bx + (int)(ColXf(2)*iw), cy, MetNum(zS, 2, true), zsc, fs, ANCHOR_LEFT, "Consolas");
 
       color vc = MetIsNan(vel) ? COL_TEXT_MUTED : (vel >= 0 ? C'80,220,120' : C'240,90,90');
-      Lbl(TPFX+"v"+rid, win, bx + (int)(colX[3]*iw), cy, MetNum(vel, 1, true), vc, fs, ANCHOR_LEFT, "Consolas");
+      Lbl(TPFX+"v"+rid, win, bx + (int)(ColXf(3)*iw), cy, MetNum(vel, 1, true), vc, fs, ANCHOR_LEFT, "Consolas");
 
       color zvc = MetIsNan(zvel) ? COL_TEXT_MUTED
                   : (MathAbs(zvel) >= InpZThrVel ? COL_GOLD
                      : (zvel >= 0 ? C'80,220,120' : C'240,90,90'));
-      Lbl(TPFX+"zv"+rid, win, bx + (int)(colX[4]*iw), cy, MetNum(zvel, 2, true), zvc, fs, ANCHOR_LEFT, "Consolas");
+      Lbl(TPFX+"zv"+rid, win, bx + (int)(ColXf(4)*iw), cy, MetNum(zvel, 2, true), zvc, fs, ANCHOR_LEFT, "Consolas");
 
       string aArr = MetIsNan(acel) ? "" : (acel >= 0 ? ShortToString(0x2191) : ShortToString(0x2193));
       color ac = MetIsNan(acel) ? COL_TEXT_MUTED : (acel >= 0 ? C'80,220,120' : C'240,90,90');
-      Lbl(TPFX+"a"+rid, win, bx + (int)(colX[5]*iw), cy, MetNum(acel, 1, true) + aArr, ac, fs, ANCHOR_LEFT, "Consolas");
+      Lbl(TPFX+"a"+rid, win, bx + (int)(ColXf(5)*iw), cy, MetNum(acel, 1, true) + aArr, ac, fs, ANCHOR_LEFT, "Consolas");
 
       double zmv = g_metZMov[c];
       string mvTxt = MetIsNan(zmv) ? ShortToString(0x2014)
                      : ((c == movLeader ? ShortToString(0x2605) : "") + MetNum(zmv, 2, true));
       color mvc = MetIsNan(zmv) ? COL_TEXT_MUTED
                   : (c == movLeader ? COL_GOLD : (zmv >= 0 ? C'80,220,120' : C'240,90,90'));
-      Lbl(TPFX+"mv"+rid, win, bx + (int)(colX[6]*iw), cy, mvTxt, mvc, fs, ANCHOR_LEFT, "Consolas");
+      Lbl(TPFX+"mv"+rid, win, bx + (int)(ColXf(6)*iw), cy, mvTxt, mvc, fs, ANCHOR_LEFT, "Consolas");
 
       double zmh = g_metZMovH[c];
       color mhc = MetIsNan(zmh) ? COL_TEXT_MUTED
                   : (MathAbs(zmh) >= 2.0 ? COL_GOLD : (zmh >= 0 ? C'80,220,120' : C'240,90,90'));
-      Lbl(TPFX+"mh"+rid, win, bx + (int)(colX[7]*iw), cy, MetNum(zmh, 2, true), mhc, fs, ANCHOR_LEFT, "Consolas");
+      Lbl(TPFX+"mh"+rid, win, bx + (int)(ColXf(7)*iw), cy, MetNum(zmh, 2, true), mhc, fs, ANCHOR_LEFT, "Consolas");
 
       string cTxt = MetIsNan(cesta) ? ShortToString(0x2014)
                     : StringFormat("%d/%d", (int)MathRound(cesta * g_cnt[c]), g_cnt[c]);
-      Lbl(TPFX+"c"+rid, win, bx + (int)(colX[8]*iw), cy, cTxt,
+      Lbl(TPFX+"c"+rid, win, bx + (int)(ColXf(8)*iw), cy, cTxt,
           MetIsNan(cesta) ? COL_TEXT_MUTED : COL_TEXT_DIM, fs, ANCHOR_LEFT, "Consolas");
 
       string mTxt;
@@ -1240,16 +1539,41 @@ void RenderMetrics(int win, int x, int y, int w, int h)
       }
       color mc = vetoOn ? C'240,90,90'
                  : (refSide > 0 ? C'80,220,120' : (refSide < 0 ? C'240,90,90' : COL_TEXT_MUTED));
-      Lbl(TPFX+"t"+rid, win, bx + (int)(colX[9]*iw), cy, mTxt, mc, fs, ANCHOR_LEFT);
+      Lbl(TPFX+"t"+rid, win, bx + (int)(ColXf(9)*iw), cy, mTxt, mc, fs, ANCHOR_LEFT);
+
+      // v1.2 — dia% (consumo do dia vs. típico) e SCORE 0-100 (detector E10)
+      if(InpShowScore)
+      {
+         double cons = g_metConsumo[c];
+         string dcT = MetIsNan(cons) ? ShortToString(0x2014)
+                      : StringFormat("%.0f%%", MathMin(cons, 999.0));
+         color dcC = MetIsNan(cons) ? COL_TEXT_MUTED
+                     : (cons >= 75.0 ? C'240,90,90'
+                        : (cons >= 50.0 ? COL_GOLD
+                           : (cons >= 25.0 ? COL_TEXT_DIM : C'80,220,120')));
+         Lbl(TPFX+"dc"+rid, win, bx + (int)(ColXf(10)*iw), cy, dcT, dcC, fs,
+             ANCHOR_LEFT, "Consolas");
+
+         double sco = g_metScore[c];
+         string scT = MetIsNan(sco) ? ShortToString(0x2014)
+                      : ((sco >= SCORE_CUT ? ShortToString(0x25CF) : "")
+                         + DoubleToString(sco, 1));
+         color scC = MetIsNan(sco) ? COL_TEXT_MUTED
+                     : (sco >= SCORE_CUT ? COL_GOLD : COL_TEXT_DIM);
+         Lbl(TPFX+"sc"+rid, win, bx + (int)(ColXf(11)*iw), cy, scT, scC, fs,
+             ANCHOR_LEFT, "Consolas");
+      }
    }
 
-   // Rodapé
+   // Rodapé (v1.2: dois níveis de sinal; VETO informativo; Score E10)
    Lbl(TPFX+"ft", win, x+pad, y+h-pad-slot/2,
-       StringFormat("k=%d | sigma dS N=%d | destaque: |zvel|%s%.1f |zS|%s%.1f CESTA%s%d/7 MTF%s%d (M30-D1) | zMov transv. %s lider | zHist N=%d mesma hora | nucleo %s",
-                    InpMetVelK, InpZVelN,
-                    ShortToString(0x2265), InpZThrVel, ShortToString(0x2265), InpZThrS,
-                    ShortToString(0x2265), InpMetThrCesta, ShortToString(0x2265), InpMetThrMTF,
-                    ShortToString(0x2605), InpZMovN, InpZCore ? "IFM-Z" : "IFM classico"),
+       StringFormat("alerta: |zS|%s%.1f (esmaece %s%02dh) | confirmacao: +|zvel|%s%.1f +CESTA%s%d/7 | VETO %s informativo | SCORE corte %s%.1f (detector, nao gatilho) | k=%d sigma N=%d | zHist N=%d | nucleo %s",
+                    ShortToString(0x2265), InpZThrS, ShortToString(0x2265), InpLateHour,
+                    ShortToString(0x2265), InpZThrVel,
+                    ShortToString(0x2265), InpMetThrCesta,
+                    ShortToString(0x2715), ShortToString(0x2265), SCORE_CUT,
+                    InpMetVelK, InpZVelN, InpZMovN,
+                    InpZCore ? "IFM-Z" : "IFM classico"),
        COL_TEXT_MUTED, fs-1, ANCHOR_LEFT);
 }
 
@@ -1605,7 +1929,8 @@ int OnInit()
    //--- Estado inicial
    g_ready     = false;
    g_mtxShow   = InpShowMatrix;
-   g_metTFIdx  = TF_H1_IDX;   // default: MÉTRICAS em H1
+   g_metTFIdx  = TF_M30_IDX;  // v1.2: MÉTRICAS abrem em M30 — o "TF doce" da
+                              // pesquisa (M5 não compra tempo; H1 chega depois)
    g_mtxTFIdx  = TF_H1_IDX;   // default: MATRIZ em H1
    g_metDirty  = true;
    g_mtxCacheTF = -1;
