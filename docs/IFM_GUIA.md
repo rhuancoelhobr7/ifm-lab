@@ -1,4 +1,4 @@
-# Guia Completo — IFM (Índice de Força da Moeda) v1.1
+# Guia Completo — IFM (Índice de Força da Moeda) v1.2
 
 > **Arquivo:** `IFM.mq5` · **Tipo:** Indicador MetaTrader 5 (subjanela) · **Nome interno:** *IFM*
 
@@ -55,7 +55,8 @@ O indicador **não desenha linhas** na subjanela (todos os plots são `DRAW_NONE
 │  │  Pesos Fisher (auto)     │   │  → série histórica (ring 64)  │  │
 │  │  Supertrend adaptativo   │   │  → métricas: vel, zvel, zS,   │  │
 │  │  Rank & Confidence       │   │    acel, zMov, zHist, cesta,  │  │
-│  │  5 juízes → IFM 0-100    │   │    MTF, VETO, candidata       │  │
+│  │  5 juízes → IFM 0-100    │   │    MTF, VETO(info), dia%,     │  │
+│  │                          │   │    SCORE, alerta/confirmação  │  │
 │  │                          │   │  → Matriz 8x8 (heatmap)       │  │
 │  │  Saída: 4 buffers        │   │  Saída: objetos gráficos      │  │
 │  └──────────────────────────┘   └───────────────────────────────┘  │
@@ -68,10 +69,10 @@ As duas metades compartilham a mesma fórmula-mãe (o "IFM de 5 juízes"), mas e
 
 | | Motor ML (par ativo) | IFM Light (todos os pares) |
 |---|---|---|
-| Juízes usados | 5 (Pivot, MP, MFC, ML-RSI, CCI) | 4 (sem o juiz ML-RSI) |
+| Juízes usados | 5 (Pivot, MP, MFC, ML-RSI, CCI) | 3 (Pivot, MFC, CCI — v1.2 removeu o MP morto; §8) |
 | Fonte de dados | Buffers de indicadores nativos do gráfico | `CopyRates` (60 barras por par/TF) |
-| Escala bruta | ±21 → normalizado 0-100 | ±15 → normalizado 0-100 |
-| Custo | Alto (roda 1x por par) | Leve (roda para ~28 pares × 6 TFs) |
+| Escala bruta | ±21 → normalizado 0-100 | ±15 → normalizado 0-100 (escala do MP mantida) |
+| Custo | Alto (roda 1x por par) | Leve (roda para ~28 pares × 6 TFs + W1/MN1 no t0 p/ o SCORE) |
 
 ---
 
@@ -116,8 +117,8 @@ As duas metades compartilham a mesma fórmula-mãe (o "IFM de 5 juízes"), mas e
 | `InpMetPersN` | 12 | N de persistência/eficiência (reservado; não usado no render atual). |
 | `InpMetThrVel` | 17.6 | Limiar de destaque de \|VEL\| (calibrado no percentil 75 da fase de pesquisa "F3"). |
 | `InpMetThrPers` | 0.58 | Limiar de PERS (reservado, idem acima). |
-| `InpMetThrCesta` | 5 | Mínimo de pares confirmando (de 7) para a moeda ser candidata. |
-| `InpMetThrMTF` | 2 | Mínimo de timeframes alinhados (de 4: M30/H1/H4/D1) para candidata. |
+| `InpMetThrCesta` | 5 | Mínimo de pares confirmando (de 7) para a CONFIRMAÇÃO (v1.2). |
+| `InpMetThrMTF` | 2 | *(v1.2: fora da regra de sinal — o mtf virou coluna só de exibição; a pesquisa mostrou que o alinhamento multi-TF não paga o custo.)* |
 
 ### Grupo "Z-Score (variante exploratória)" — o "Z" do IFM-Z
 
@@ -125,9 +126,16 @@ As duas metades compartilham a mesma fórmula-mãe (o "IFM de 5 juízes"), mas e
 |---|---|---|
 | `InpZCore` | true | **Liga o núcleo IFM-Z**: o juiz CCI vira um z-score contínuo (ver §8), removendo a quantização da força. |
 | `InpZVelN` | 32 | Janela usada para estimar o desvio-padrão dos passos de S (para o `zvel`). |
-| `InpZThrVel` | 2.0 | Limiar de destaque de \|zvel\| (dourado + critério de candidata). |
-| `InpZThrS` | 1.0 | Limiar de destaque de \|zS\| (z transversal da força). |
-| `InpZMovN` | 20 | Quantos dias entram no z histórico do movimento diário (zHist). |
+| `InpZThrVel` | 2.0 | Limiar de destaque de \|zvel\| (dourado + critério da CONFIRMAÇÃO). |
+| `InpZThrS` | 1.0 | Limiar de destaque de \|zS\| (z transversal) — é também o gatilho do **ALERTA** (v1.2). |
+| `InpZMovN` | 20 | Quantos dias entram no z histórico do movimento diário (zHist) e na média do **dia%** (v1.2). |
+
+### Grupo "v1.2 — Alerta / Score (pesquisa reatividade)"
+
+| Input | Padrão | O que faz |
+|---|---|---|
+| `InpShowScore` | true | Mostra as colunas **dia%** e **SCORE** (e liga o cálculo do Score, que consulta W1/MN1). |
+| `InpLateHour` | 15 | Hora do servidor a partir da qual o ALERTA esmaece (abertura de NY — a pesquisa mediu captura restante ~11% nos alarmes tardios). |
 
 ---
 
@@ -401,8 +409,8 @@ Versão econômica do IFM usada pelo painel para **qualquer par/TF/deslocamento*
 
 Diferenças para o IFM completo:
 
-- **4 juízes** (não há motor ML por par): Pivot×2 + MP×2 + MFC×1 + CCI×3 → bruto ±15 → `IFM = (bruto+15)/30×100`;
-- EMA e CCI calculados **manualmente** a partir das barras copiadas (`EmaFromRates`, `CciFromRates`);
+- **3 juízes** (não há motor ML por par): Pivot×2 + MFC×1 + CCI×3 → bruto efetivo ±11, **agregado na escala ±15** → `IFM = (bruto+15)/30×100`. *(v1.2: o juiz Market Profile do Light era CÓDIGO MORTO desde a origem — o guard exigia 65 barras com a janela capada em 60, então o voto era sempre 0; a arqueologia E2 da pesquisa `2026-07-reatividade-metricas` o flagrou e a v1.2 removeu o bloco. A escala ±15 foi mantida de propósito: os valores de S ficam idênticos aos da v1.0/v1.1 e à paridade P1 da pesquisa. O guard de barras mínimas também segue usando `InpEMAFallbackLen` pelo mesmo motivo.)*
+- CCI calculado **manualmente** a partir das barras copiadas (`CciFromRates`);
 - Janela limitada a `LIGHT_WINDOW = 60` barras (paridade declarada com o `src/metrics.py` da pesquisa V2);
 - Se faltam dados, devolve 50 (neutro) — e o chamador trata janela incompleta como NaN.
 
@@ -440,7 +448,7 @@ S(moeda) = 50 + média(dir sobre os pares da moeda) × 50        (0–100)
 
 ## 10. Vista MÉTRICAS
 
-A tabela principal (esquerda do painel). Mantém, por moeda × TF, um **ring de 64 valores de S** (`g_metS`, índice 63 = barra fechada mais recente). Abas M5/M15/M30/H1/H4/D1 trocam o TF exibido. Linhas ordenadas por S decrescente (NaN por último), com zebra e fundo verde/vermelho quando a moeda é **candidata** (ver abaixo).
+A tabela principal (esquerda do painel). Mantém, por moeda × TF, um **ring de 64 valores de S** (`g_metS`, índice 63 = barra fechada mais recente). Abas M5/M15/M30/H1/H4/D1 trocam o TF exibido — **a aba padrão é M30** (v1.2: o "TF doce" da pesquisa — o M5 não dispara antes e custa ~6× mais falsos; o H1 chega depois). Linhas ordenadas por S decrescente (NaN por último), com zebra e o destaque de fundo em **dois níveis** — ALERTA (tinta suave) e CONFIRMAÇÃO (verde/vermelho forte) — ver abaixo.
 
 ### As colunas, uma a uma
 
@@ -456,7 +464,9 @@ A tabela principal (esquerda do painel). Mantém, por moeda × TF, um **ring de 
 | **zMov** | Z transversal do movimento diário em ATRs (`g_metZMov`) | Quem mais andou no **último dia D1 fechado** (intradiário: ontem, desde as 00:00 daquele dia até a mesma hora de agora) em relação às outras moedas. ★ dourada = líder absoluto. |
 | **zHist** | Z do movimento do dia de referência vs. os mesmos horários dos `InpZMovN`(20) dias anteriores (`g_metZMovH`) | Esse dia foi normal ou excepcional **para essa própria moeda**? ≥2 vira dourado. |
 | **cesta** | Pares confirmando o lado de S / total (ex.: `6/7`) | Unanimidade da cesta: 7/7 = todos os 7 pares concordam com a direção da moeda. |
-| **mtf** | ▲▲▲△ — TFs (M30/H1/H4/D1) alinhados com o lado do H1 | Setas cheias = TFs concordando; ocas = não. ✕ vermelho = VETO ativo. |
+| **mtf** | ▲▲▲△ — TFs (M30/H1/H4/D1) alinhados com o lado do H1 | Setas cheias = TFs concordando; ocas = não. ✕ vermelho = VETO ativo (v1.2: **só informação** — não anula mais nada). |
+| **dia%** | \|movimento de HOJE até agora\| ÷ média dos \|dias cheios\| dos últimos 20 dias, em % (`g_metConsumo`) | v1.2 — o relógio de exaustão da pesquisa: **quanto do dia típico já foi consumido**. Verde <25% (estrada pela frente), âmbar 50–75%, vermelho >75% (alarme novo aqui = provável exaustão). |
+| **SCORE** | Nota contínua 0–100 do detector E10 (`g_metScore`; base M30, independente da aba) | v1.2 — "quão parecido este instante é com o começo de uma tendência real". ● dourado quando ≥ 3.4 (o corte congelado p97). **Detector, NÃO gatilho** — ver seção própria abaixo. |
 
 > 💡 **zvel, o conceito-chave:** a força S sempre balança um pouco. O `zvel` pergunta: *"esse balanço das últimas 6 barras é grande comparado ao balanço típico?"*. Ele divide o deslocamento pelo "ruído esperado" (o desvio-padrão dos passos × √k, que é como ruído puro se acumula). zvel = 2 significa um movimento 2 desvios acima do esperado por acaso — provável movimento *de verdade*.
 
@@ -470,28 +480,49 @@ A tabela principal (esquerda do painel). Mantém, por moeda × TF, um **ring de 
 4. **zHist**: z do valor do dia de referência contra a média/σ dos dias anteriores válidos (exige ≥10 dias).
 5. **zMov**: z do valor do dia de referência contra a média/σ **das 8 moedas no mesmo dia** (exige ≥4 moedas válidas).
 
-### Candidata (destaque de linha verde/vermelho)
+### Sinal em dois níveis (v1.2): ALERTA e CONFIRMAÇÃO
 
-Uma moeda é marcada candidata (a operação a favor do seu lado) quando **todas** as condições valem:
+A pesquisa `2026-07-reatividade-metricas` mostrou que a candidata original (5 condições simultâneas, com VETO e mtf) detectava **0% das tendências reais em tempo útil no teste selado** — chegava depois da festa. A v1.2 troca o sinal único por dois níveis:
+
+**ALERTA (tinta suave na linha)** — o sismógrafo:
+
+```
+|zS| ≥ InpZThrS (1.0)  E  lado definido (S ≠ 50)
+```
+
+Pega ~9 em cada 10 tendências reais em ~30 min com ~87% do movimento pela frente — mas com precisão baixa (~2%): a semântica é **"olhe para cá"**, nunca "entre agora". Depois de `InpLateHour` (15h server, abertura de NY) o alerta **esmaece** (âmbar apagado): a pesquisa mediu que a captura restante despenca no fim do dia (E6/E8) — alerta tardio é provável exaustão.
+
+**CONFIRMAÇÃO (verde/vermelho forte)** — a antiga candidata, enxuta:
 
 ```
 |zvel| ≥ InpZThrVel (2.0)      → movimento estatisticamente relevante
 |zS|   ≥ InpZThrS (1.0)        → já descolada do grupo
 cesta  ≥ InpMetThrCesta (5 de 7) → maioria clara dos pares confirmando
-mtf    ≥ InpMetThrMTF (2 de 4)   → multi-timeframe minimamente alinhado
-VETO   desligado                 → sem contra-indicação estrutural
 lado definido (S ≠ 50)
 ```
 
-### VETO (o ✕ vermelho)
+Saíram da regra (v1.2, com evidência da pesquisa): o **VETO** (cortava justamente os pullbacks bons — vetados capturavam 74% vs 36% dos não-vetados, E6.2) e o **mtf** (o alinhamento multi-TF não paga o próprio custo em nenhum formato testado — C7/C9 zerados em E7/E10; só atrasava o sinal). A confirmação continua sendo, por natureza, **tardia** — é validação de que a tendência existe, não convite de entrada.
 
-Proteção contra "comprar o topo do movimento": se a moeda está no **top-2 do ranking pelo seu lado** (2 mais fortes se está forte; 2 mais fracas se está fraca — ranking H1 via `MetRankH1`, desempate por cesta e alfabeto) **e** a velocidade VEL(6) está **contrária ao lado tanto em H4 quanto em D1**, o VETO liga e anula a candidatura.
+### VETO (o ✕ vermelho) — informativo desde a v1.2
 
-> 💡 A moeda ainda parece campeã no placar, mas os dois prazos maiores mostram que ela já está *desacelerando na contramão*. O VETO diz: "forte, sim — mas provavelmente no fim da festa".
+A definição não mudou: moeda no **top-2 do ranking pelo seu lado** (ranking H1 via `MetRankH1`, desempate por cesta e alfabeto) com a velocidade VEL(6) **contrária ao lado tanto em H4 quanto em D1**. O que mudou é o papel: o ✕ continua aparecendo na coluna mtf como **informação de contexto** ("os prazos maiores estão desacelerando na contramão"), mas **não anula mais nenhum sinal**.
+
+> 💡 A intenção original era evitar "comprar o fim da festa". A pesquisa mediu o contrário: quando o VETO acendia, na mediana ainda restavam **três quartos** do movimento — a desaceleração em H4/D1 costuma ser o *respiro* (pullback) de uma moeda forte, historicamente o melhor ponto de entrada, não o fim.
+
+### SCORE 0–100 e dia% (v1.2 — vindos da pesquisa)
+
+**SCORE** é o detector contínuo congelado na etapa E10 da pesquisa e aprovado no teste selado (critério C10, portão P4). Fórmula: `100 × sigmoide(Σ coef·(x−média)/desvio + intercepto)` sobre 14 features da **base M30** (por isso o valor não muda ao trocar de aba): zS, zvel, vel, acel, zMov, zHist (todas assinadas pelo lado do zS), cesta, mtf, hora do dia, minutos da sessão, e alinhamento MN1/W1/D1/H4 (o S de W1/MN1 é calculado sob demanda via `CtxStrength`). Pesos, médias e desvios são **constantes congeladas** no fonte (`SCORE_MU/SD/W`, cópia de `research/2026-07-reatividade-metricas/results/E10_score_pesos.csv`) — **não recalibrar sem novo período selado**.
+
+- A escala é comprimida: a nota raramente passa de 10 — o que importa é o **corte congelado 3.4** (percentil 97 do treino): ● dourado = acima do corte.
+- **É detector, não sistema** (veredito P4): no selado ele venceu a candidata com folga como apontador de tendências, mas uma regra de execução mínima com custo perdeu dinheiro (PF 0.78). Use como régua de atenção.
+- Sessões/DST: hora e minutos-de-sessão usam as janelas calibradas na pesquisa (server = DST europeu; Tóquio 03h verão/02h inverno, Londres 10h, NY 15h com o descasamento EUA×Europa tratado), em regra de **nível de dia** — nos dois domingos de virada do relógio a atribuição pode divergir da régua exata da pesquisa.
+- Fora do dia de negociação (nenhuma sessão ativa), sem lado definido ou com qualquer feature NaN, o SCORE mostra "—".
+
+**dia%** é o medidor de consumo do dia: o movimento da cesta da moeda de hoje (do início do dia D1 corrente até a última barra M30 fechada, em ATRs — mesma régua do zMov) dividido pela **média dos dias cheios** dos últimos `InpZMovN` dias. 💡 A pesquisa mostrou que a captura restante cai monotonicamente com o consumo (94% de sobra nos disparos a <10% do dia → 11% acima de 75%): dia% alto = o alarme desta moeda hoje já chegou tarde.
 
 ### Rodapé
 
-Linha de status com os parâmetros vigentes: k, N do sigma, limiares de destaque, N do zHist e qual núcleo está ativo ("IFM-Z" ou "IFM classico").
+Linha de status com os parâmetros vigentes: limiares do ALERTA (com a hora de esmaecimento) e da CONFIRMAÇÃO, o papel informativo do VETO, o corte do SCORE, k, N do sigma, N do zHist e qual núcleo está ativo ("IFM-Z" ou "IFM classico").
 
 ---
 

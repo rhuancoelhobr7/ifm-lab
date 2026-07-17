@@ -4,7 +4,7 @@ Repositório de pesquisa e desenvolvimento do indicador **IFM** (MetaTrader 5, M
 
 ## Estado atual
 
-- **Versão principal:** v1.1 (`src/IFM.mq5`, ~2040 linhas) — corrige o look-ahead do replay em TFs altos (descoberta E3); zMov/zHist medindo o último dia D1 fechado foi declarado **comportamento oficial** e o GUIA §10 corrigido para descrevê-lo (o guia referencia o cálculo do indicador, não o oposto).
+- **Versão principal:** v1.2 (`src/IFM.mq5`, ~2360 linhas) — aplica as conclusões da pesquisa reatividade: sinal em dois níveis (ALERTA por zS + CONFIRMAÇÃO enxuta), VETO informativo, mtf fora da regra, alerta esmaece pós-15h, colunas dia% (consumo) e SCORE 0–100 (detector E10 congelado — não é gatilho), aba padrão M30, juiz MP morto removido do Light (escala mantida — S bit-idêntico). ⚠ v1.2 aguarda compilação/validação no MetaEditor pelo usuário.
 - **Documentação:** `docs/IFM_GUIA.md` cobre 100% da arquitetura da v1.1; `docs/LEITURA.md` com **10 entradas definitivas** (pesquisa reatividade, E12).
 - **Pesquisas:** `research/2026-07-reatividade-metricas/` **CONCLUÍDA** (2026-07-16; P4: Score é detector, não sistema — baseline mantida, sem variante; reforma da candidata+VETO marcada como mudança futura). Governança de pesquisas: PLANO.md + TAREFAS.md + PROGRESS.md na pasta da pesquisa; validador `scripts/check_tarefas.py` roda antes de todo commit da pesquisa.
 - **Variantes:** nenhuma ainda.
