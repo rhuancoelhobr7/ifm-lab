@@ -12,6 +12,14 @@ Dado que uma tendência intraday real de uma moeda **já começou** (Premissa P1
 
 💡 É uma pesquisa de **detecção, não de previsão** (sismógrafo, não bola de cristal — ESBOÇO, Premissa P3): a nota de cada métrica tem quatro partes — latência, taxa de detecção, alarmes falsos e captura restante.
 
+## 💡 Glossário mínimo (os três protagonistas da conclusão)
+
+- **Regra "candidata"** — o alarme oficial do painel hoje (linha verde/vermelha na vista MÉTRICAS): só acende quando **cinco condições valem ao mesmo tempo** — |zvel| ≥ 2.0 (salto raro na força), |zS| ≥ 1.0 (moeda descolada do grupo), cesta ≥ 5/7 (maioria dos pares confirma), mtf ≥ 2/4 (timeframes alinhados) e sem VETO. 💡 Um alarme de incêndio com cinco sensores em série: quase nunca toca, e quando toca o fogo já tomou o prédio.
+- **VETO** — o ✕ vermelho que anula a candidatura: liga quando a moeda está no top-2 do lado (ranking H1) mas a velocidade dela em H4 **e** D1 aponta contra. Intenção: não "comprar o fim da festa". A pesquisa mostrou que essa desaceleração costuma ser só o **pullback de uma moeda forte** — a trava corta as boas entradas.
+- **Score 0–100** — construído NA pesquisa (E10); não existe no painel. Em vez do checklist tudo-ou-nada, uma **nota contínua**: cada métrica contribui com um peso fixo (aprendido em treino+validação e congelado) e a soma vira 0–100 = "quão parecido este instante é com o começo de uma tendência real". 💡 A candidata é uma fileira de interruptores em série; o Score é um *dimmer* que soma evidências parciais.
+
+(A régua das "quatro notas" — detecção, latência, captura restante, precisão — está no ESBOÇO §1.3; "selado" = 9 meses trancados e abertos UMA vez no E11 para o teste cego.)
+
 ## Método
 
 Resumo (detalhes e critérios congelados no [PLANO.md](PLANO.md)):
@@ -47,9 +55,9 @@ Cada relatório em `results/` traz tabelas com leitura; síntese por etapa:
 **O painel G8 é um sismógrafo honesto com o gatilho errado.** As quatro conclusões que a pesquisa sustenta:
 
 1. **Detectar cedo é fácil; disparar com precisão é estruturalmente difícil.** O zS cruza cedo (94% dos eventos no selado, 30 min de latência, ~89% de captura restante) — mas nenhum formato testado (limiar solo, confluência E/OU, filtro de contexto, filtro de sessão) tira a precisão da faixa de 1–4%: os disparos fora de evento dominam em qualquer régua. A ponderação contínua (Score) triplica a precisão, e ainda fica longe do piso de 40% do C4. Leitura prática: **os sinais do painel são alertas de atenção, não gatilhos de entrada**.
-2. **A regra "candidata" atual do painel está morta — e o VETO atrapalha.** A candidata detecta 0–2.6% dos eventos em tempo útil (0% no selado, confiança ALTA): quando acende, a festa já acabou. O VETO corta os disparos BONS (pullbacks de moedas fortes). A reforma da regra candidata fica marcada como mudança futura do indicador (via CHANGELOG, fora do escopo desta pesquisa).
+2. **A regra "candidata" atual do painel está morta — e o VETO atrapalha.** A candidata (💡 o alarme de cinco sensores em série do glossário) detecta 0–2.6% dos eventos em tempo útil (0% no selado, confiança ALTA): em nove meses de teste cego, nenhuma tendência real foi sinalizada a tempo de operar — quando a linha acende, vale como confirmação tardia, não como convite. E o VETO faz o contrário do que promete: os disparos vetados capturaram mediana 74.2% do movimento restante vs 36.3% dos não-vetados — quando ele diz "fim da festa", na mediana ainda restam três quartos dela. A reforma da regra candidata fica marcada como mudança futura do indicador (via CHANGELOG, fora do escopo desta pesquisa).
 3. **O relógio vale mais que o contexto.** A hora do dia (sessão, % consumido) é o condicionante mais barato da qualidade do sinal — enquanto o contexto multi-TF (MN/W1/D1) não paga o próprio custo nem como filtro (E7) nem como feature (E10). Tóquio é onde as tendências nascem com estrada pela frente; depois das 15h o alarme chega tarde.
-4. **O Score 0–100 congelado é um detector aprovado (C10), não um sistema de trading (P4).** Ele generalizou no selado e venceu a baseline, mas a regra mínima de execução com custo dá PF 0.78 — **sem variante `src/variants/`; a baseline segue no painel**. O Score fica como régua de pesquisa e candidato a camada de "atenção" numa reforma futura.
+4. **O Score 0–100 congelado é um detector aprovado (C10), não um sistema de trading (P4).** A nota contínua generalizou no selado (apontou tendências reais onde a candidata apontou zero, mantendo o perfil da validação) e venceu a baseline pelo critério formal — mas ao simular entradas de verdade, com custo, perdeu dinheiro (profit factor 0.78: 💡 para cada 1 ATR ganho, 1.28 perdido). Detectar tendência ≠ ganhar dinheiro com ela. Portanto **sem variante `src/variants/`; a baseline segue no painel**; o Score fica como régua de pesquisa e candidato a camada de "atenção" numa reforma futura.
 
 ### Hipóteses refutadas (com a mesma dignidade das confirmadas)
 
