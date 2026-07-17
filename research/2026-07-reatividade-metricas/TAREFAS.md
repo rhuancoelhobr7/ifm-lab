@@ -78,10 +78,10 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Fatores novos / camadas de TF avaliados por ganho incremental (C9) (results/E10_score.md)
 - [x] Tabela de pesos métrica × TF + Score 0–100 CONGELADO (results/E10_score.md, results/E10_score_pesos.csv)
 ### E11 — Teste selado e regras intraday · PORTÃO P4
-- [ ] Abertura ÚNICA de data/sealed/ registrada no PROGRESS.md
-- [ ] Score vs. baseline candidata nas quatro notas (C10)
-- [ ] Regras intraday de entrada/saída com custo, PF, drawdown (walk-forward, A3, sem overnight)
-- [ ] 🚪 P4: 👤 veredito final registrado
+- [x] Abertura ÚNICA de data/sealed/ registrada no PROGRESS.md (PROGRESS.md, scripts/e11_selado.py)
+- [x] Score vs. baseline candidata nas quatro notas (C10) (results/E11_selado.md)
+- [x] Regra intraday mínima com custo, PF, drawdown (sem overnight; medição de sinal, não sistema) (results/E11_selado.md)
+- [x] 🚪 P4: 👤 veredito final registrado — Score É detector, NÃO sistema (Carlos Eduardo) (PROGRESS.md, results/E11_selado.md)
 ### E12 — Consolidação
 - [ ] README da pesquisa fechado (pergunta → método → resultados → conclusão)
 - [ ] Entradas definitivas em docs/LEITURA.md (com confiança e link)
