@@ -4,6 +4,14 @@ Todas as versões do indicador `src/IFM.mq5`. Cada versão corresponde a um git 
 
 Formato de cada entrada: **o que mudou** e **por quê**. A origem da mudança pode ser **pesquisa** (linkar a pasta em `research/`) ou **direta** (decisão/ideia/correção sem pesquisa prévia — registrar a motivação em texto). Ambas são válidas; nenhuma entrada fica sem motivação.
 
+## v1.2.1 — 2026-07-16
+
+Correção sem mudança de lógica (motivação direta: reporte de Rhuan — coluna SCORE toda em "—" no primeiro teste da v1.2):
+
+- **Warm-up do histórico W1/MN1.** O SCORE consulta W1/MN1, timeframes que o painel nunca tinha pedido ao terminal — o primeiro `CopyRates` falha até o download assíncrono concluir, e o Score nascia vazio. Agora o `OnInit` cutuca a sincronização (`iBars` W1/MN1 nos 28 pares) e o `MetRebuild` re-cutuca enquanto o contexto não vier completo.
+- **Diagnóstico no Journal.** Quando a coluna fica toda em "—", o indicador imprime o MOTIVO (fora do dia de negociação / zS indisponível / histórico W1-MN1 baixando / contagem de bloqueios por moeda) — em vez de deixar o usuário adivinhando.
+- GUIA §10 anota o comportamento da primeira carga.
+
 ## v1.2 — 2026-07-16
 
 Aplicação das conclusões da pesquisa [`research/2026-07-reatividade-metricas/`](research/2026-07-reatividade-metricas/) (E0–E12 concluídas; portões P1–P4 carimbados; achados em `docs/LEITURA.md`). Decisão de Rhuan: implementar todas as mudanças sugeridas pela consolidação. **Via pesquisa** — cada item cita a evidência:

@@ -3,7 +3,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "IFM - Índice de Força da Moeda"
 #property link        ""
-#property version     "1.2"
+#property version     "1.21"
 #property description ""
 #property strict
 
@@ -1223,16 +1223,17 @@ void MetRebuild()
       if(barT30 > 0)
          SessionOf(barT30 + PeriodSeconds(PERIOD_M30), sessIdx, minSess, horaFrac);
 
+      int bLado = 0, bMet = 0, bCtx = 0;             // v1.2.1: tally p/ diagnóstico
       if(m30 >= 4 && sd30 > 1e-9 && sessIdx >= 0)   // fora do dia de negociação: sem Score
       for(int c = 0; c < 8; c++)
       {
          double serie[MET_RING];
          for(int j = 0; j < MET_RING; j++) serie[j] = g_metS[c][TF_M30_IDX][j];
          double s0 = serie[MET_RING-1];
-         if(MetIsNan(s0)) continue;
+         if(MetIsNan(s0)) { bMet++; continue; }
          double zs = (s0 - mean30) / sd30;
          int lado = MetSign(zs);
-         if(lado == 0) continue;
+         if(lado == 0) { bLado++; continue; }
          double vel   = MetVel(serie, InpMetVelK);
          double acel  = MetAcel(serie, InpMetVelK);
          double zvel  = MetZVel(serie, InpMetVelK, InpZVelN);
@@ -1244,9 +1245,10 @@ void MetRebuild()
          double sD1   = g_metS[c][TF_D1_IDX][MET_RING-1];
          if(MetIsNan(vel) || MetIsNan(acel) || MetIsNan(zvel) || MetIsNan(cesta) ||
             MetIsNan(zmv) || MetIsNan(zmh) || MetIsNan(sH1) || MetIsNan(sH4) ||
-            MetIsNan(sD1) || MetIsNan(sW1[c]) || MetIsNan(sMN[c])) continue;
+            MetIsNan(sD1)) { bMet++; continue; }
+         if(MetIsNan(sW1[c]) || MetIsNan(sMN[c])) { bCtx++; continue; }
          int refSide = MetSign(sH1 - 50.0);
-         if(refSide == 0) continue;                  // mtf indefinido
+         if(refSide == 0) { bMet++; continue; }      // mtf indefinido
          int mtf = 0;
          for(int t2 = TF_M30_IDX; t2 <= TF_D1_IDX; t2++)
          {
@@ -1272,6 +1274,35 @@ void MetRebuild()
          for(int f = 0; f < SCORE_NF; f++)
             z += SCORE_W[f] * (x[f] - SCORE_MU[f]) / SCORE_SD[f];
          g_metScore[c] = 100.0 / (1.0 + MathExp(-z));
+      }
+
+      // v1.2.1 — diagnóstico no Journal quando o Score fica todo "—", com o
+      // motivo; se o bloqueio é o contexto W1/MN1 (histórico frio na 1ª vez),
+      // re-cutuca o download para o próximo refresh preencher.
+      int nOk = 0, nW1 = 0, nMN = 0;
+      for(int c = 0; c < 8; c++)
+      {
+         if(!MetIsNan(g_metScore[c])) nOk++;
+         if(!MetIsNan(sW1[c])) nW1++;
+         if(!MetIsNan(sMN[c])) nMN++;
+      }
+      if(nOk == 0)
+      {
+         if(nW1 < 8 || nMN < 8)
+            for(int p = 0; p < g_pairsN && p < MET_MAXP; p++)
+            { iBars(g_pair[p], PERIOD_W1); iBars(g_pair[p], PERIOD_MN1); }
+         string motivo;
+         if(sessIdx < 0)
+            motivo = "FORA do dia de negociacao (Toquio->NY) — o Score volta na abertura de Toquio";
+         else if(m30 < 4 || sd30 <= 1e-9)
+            motivo = "zS do M30 indisponivel (S de menos de 4 moedas valido)";
+         else if(nW1 < 8 || nMN < 8)
+            motivo = StringFormat("contexto W1 %d/8 e MN1 %d/8 — historico ainda baixando; "
+                                  "deve preencher no proximo refresh", nW1, nMN);
+         else
+            motivo = StringFormat("por moeda: sem lado (zS=0)=%d, metrica NaN=%d, ctx NaN=%d",
+                                  bLado, bMet, bCtx);
+         Print("IFM SCORE sem valor: ", motivo);
       }
    }
    g_metDirty = false;
@@ -1925,6 +1956,16 @@ int OnInit()
       seen[key] = true;
    }
    Print("IFM: ", g_pairsN, " pares G8 detectados.");
+
+   // v1.2.1: o SCORE consulta W1/MN1 — cutuca o download do histórico já na
+   // inicialização (o 1º CopyRates de um TF nunca usado falha até o terminal
+   // baixar; sem isto o Score nascia "—" e só sarava refreshes depois)
+   if(InpShowScore)
+      for(int p = 0; p < g_pairsN; p++)
+      {
+         iBars(g_pair[p], PERIOD_W1);
+         iBars(g_pair[p], PERIOD_MN1);
+      }
 
    //--- Estado inicial
    g_ready     = false;
