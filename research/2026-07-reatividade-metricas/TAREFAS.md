@@ -3,7 +3,7 @@
 Legenda: [ ] pendente · [~] em andamento · [x] concluída (evidência) · [!] bloqueada (motivo) · [-] cancelada (motivo)
 Regras: checkbox só marca com evidência · portões P1–P4 só marcam com decisão do usuário no PROGRESS.md
 Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências + portões + template didático §1.2)
-Última atualização: 2026-07-16 · sessão E7 (contexto/conflito + corrida/cascata — claude de Rhuan)
+Última atualização: 2026-07-16 · sessão E12 (consolidação — claude de Rhuan) · PESQUISA CONCLUÍDA
 
 ## BLOCO A — Fundação
 ### E0 — Setup
@@ -83,8 +83,8 @@ Validação: `python scripts/check_tarefas.py` antes de todo commit (evidências
 - [x] Regra intraday mínima com custo, PF, drawdown (sem overnight; medição de sinal, não sistema) (results/E11_selado.md)
 - [x] 🚪 P4: 👤 veredito final registrado — Score É detector, NÃO sistema (Carlos Eduardo) (PROGRESS.md, results/E11_selado.md)
 ### E12 — Consolidação
-- [ ] README da pesquisa fechado (pergunta → método → resultados → conclusão)
-- [ ] Entradas definitivas em docs/LEITURA.md (com confiança e link)
-- [ ] Índice research/README.md atualizado
-- [ ] Variante src/variants/ criada (se Score aprovado) OU baseline mantida documentada
-- [ ] Hipóteses refutadas registradas
+- [x] README da pesquisa fechado (pergunta → método → resultados → conclusão) (README.md)
+- [x] Entradas definitivas em docs/LEITURA.md (com confiança e link) (docs/LEITURA.md)
+- [x] Índice research/README.md atualizado (research/README.md)
+- [x] Variante src/variants/ criada (se Score aprovado) OU baseline mantida documentada — P4: sem variante, baseline mantida (README.md, PROGRESS.md)
+- [x] Hipóteses refutadas registradas (README.md, docs/LEITURA.md)

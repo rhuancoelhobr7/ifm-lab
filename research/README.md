@@ -26,4 +26,4 @@ Regras:
 
 | Pesquisa | Pergunta | Status | Conclusão |
 |---|---|---|---|
-| [2026-07-reatividade-metricas](2026-07-reatividade-metricas/) | Quais métricas/TFs/combinações do painel G8 detectam mais rápido as tendências intraday reais — e quanto movimento resta quando o sinal acende? | Em andamento (E3 — paridade) | — |
+| [2026-07-reatividade-metricas](2026-07-reatividade-metricas/) | Quais métricas/TFs/combinações do painel G8 detectam mais rápido as tendências intraday reais — e quanto movimento resta quando o sinal acende? | ✅ Concluída (2026-07-16, P4) | zS detecta cedo (94% no selado, ~30 min, ~87% de captura) mas NENHUM formato de disparo alcança precisão operável — sinais são alertas, não gatilhos; candidata atual morta (0% no selado) e VETO atrapalha → reforma marcada; relógio/sessão condiciona mais que contexto multi-TF (que não paga); M30 é o TF doce; Score 0–100 aprovado como detector (C10), sem variante (não é sistema) — 10 entradas em [docs/LEITURA.md](../docs/LEITURA.md) |
