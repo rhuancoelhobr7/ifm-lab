@@ -517,6 +517,7 @@ A definição não mudou: moeda no **top-2 do ranking pelo seu lado** (ranking H
 - **É detector, não sistema** (veredito P4): no selado ele venceu a candidata com folga como apontador de tendências, mas uma regra de execução mínima com custo perdeu dinheiro (PF 0.78). Use como régua de atenção.
 - Sessões/DST: hora e minutos-de-sessão usam as janelas calibradas na pesquisa (server = DST europeu; Tóquio 03h verão/02h inverno, Londres 10h, NY 15h com o descasamento EUA×Europa tratado), em regra de **nível de dia** — nos dois domingos de virada do relógio a atribuição pode divergir da régua exata da pesquisa.
 - Fora do dia de negociação (nenhuma sessão ativa), sem lado definido ou com qualquer feature NaN, o SCORE mostra "—".
+- **Coluna toda em "—"?** (v1.2.1) O Journal do terminal (aba *Experts*) imprime o motivo a cada refresh: fora do dia de negociação, zS indisponível, ou **histórico W1/MN1 ainda baixando** — na primeira carga em um terminal que nunca pediu W1/MN1, o download é assíncrono; o indicador cutuca a sincronização no init e a cada rebuild, e o Score preenche em 1–2 refreshes.
 
 **dia%** é o medidor de consumo do dia: o movimento da cesta da moeda de hoje (do início do dia D1 corrente até a última barra M30 fechada, em ATRs — mesma régua do zMov) dividido pela **média dos dias cheios** dos últimos `InpZMovN` dias. 💡 A pesquisa mostrou que a captura restante cai monotonicamente com o consumo (94% de sobra nos disparos a <10% do dia → 11% acima de 75%): dia% alto = o alarme desta moeda hoje já chegou tarde.
 
