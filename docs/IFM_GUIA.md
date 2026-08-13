@@ -135,6 +135,13 @@ As duas metades compartilham a mesma fórmula-mãe (o "IFM de 5 juízes"), mas e
 | Input | Padrão | O que faz |
 |---|---|---|
 | `InpShowScore` | true | Mostra as colunas **dia%** e **SCORE** (e liga o cálculo do Score, que consulta W1/MN1). |
+
+### Grupo "CSSM (M e ER — observação, ver P2)" — v1.3
+
+| Input | Default | O que faz |
+|---|---|---|
+| `InpShowCssm` | true | Mostra as colunas **M** e **er**, lidas do `Cssm.mq5` por `iCustom` no TF da aba (shift 1 — a barra 0 do CSSM é cópia cosmética, ler shift 0 seria repintar). Exige `Cssm.mq5` **≥ v1.44**, que expõe o ER nos buffers 40–47. Se o `iCustom` falhar, as colunas ficam em "—" e o motivo sai uma vez no Journal. |
+| `InpCssmName` | `Cssm` | Nome do indicador CSSM dentro de `MQL5/Indicators`. Trocar só se o arquivo tiver outro nome. |
 | `InpLateHour` | 15 | Hora do servidor a partir da qual o ALERTA esmaece (abertura de NY — a pesquisa mediu captura restante ~11% nos alarmes tardios). |
 
 ---
@@ -467,6 +474,8 @@ A tabela principal (esquerda do painel). Mantém, por moeda × TF, um **ring de 
 | **mtf** | ▲▲▲△ — TFs (M30/H1/H4/D1) alinhados com o lado do H1 | Setas cheias = TFs concordando; ocas = não. ✕ vermelho = VETO ativo (v1.2: **só informação** — não anula mais nada). |
 | **dia%** | \|movimento de HOJE até agora\| ÷ média dos \|dias cheios\| dos últimos 20 dias, em % (`g_metConsumo`) | v1.2 — o relógio de exaustão da pesquisa: **quanto do dia típico já foi consumido**. Verde <25% (estrada pela frente), âmbar 50–75%, vermelho >75% (alarme novo aqui = provável exaustão). |
 | **SCORE** | Nota contínua 0–100 do detector E10 (`g_metScore`; base M30, independente da aba) | v1.2 — "quão parecido este instante é com o começo de uma tendência real". ● dourado quando ≥ 3.4 (o corte congelado p97). **Detector, NÃO gatilho** — ver seção própria abaixo. |
+| **M** | `M` do CSSM lido do `Cssm.mq5` (buffers 0–7) no **TF da aba**, shift 1 (`g_metM`) | v1.3 — assinado: verde acima de zero, vermelho abaixo. `M = sinal(t) × min(\|t\|/2, 1) × ER` — direção × força do t de Newey-West saturada × qualidade do caminho. §11 do `vigia-lab/LEITURA_INDICADORES.md` (B14): `M ≥ 0,3` deu **7,6% de precisão com 1,6 falsos/semana** — a maior do programa depois do ER. |
+| **er** | `ER` do CSSM (buffers 40–47 da v1.44), mesmo TF e shift (`g_metER`) | v1.3 — eficiência de caminho de Kaufman: deslocamento líquido ÷ distância percorrida, 0 a 1, **sem sinal**. **Não é força pela frente: ER alto = JÁ ANDOU** (b1: rho **−0,51** contra a captura restante). Dois papéis: PORTÃO (~0,25 com zS ligado) marca o cruzamento que merece atenção; GRADIENTE dentro do movimento mede exaustão. **Número cru, sem marcador de limiar** — o painel do CSSM já teve uma regra que acendia como gatilho e detectou 0% no selado (E11). |
 
 > 💡 **zvel, o conceito-chave:** a força S sempre balança um pouco. O `zvel` pergunta: *"esse balanço das últimas 6 barras é grande comparado ao balanço típico?"*. Ele divide o deslocamento pelo "ruído esperado" (o desvio-padrão dos passos × √k, que é como ruído puro se acumula). zvel = 2 significa um movimento 2 desvios acima do esperado por acaso — provável movimento *de verdade*.
 

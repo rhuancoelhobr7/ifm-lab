@@ -3,7 +3,7 @@
 //+------------------------------------------------------------------+
 #property copyright   "IFM - Índice de Força da Moeda"
 #property link        ""
-#property version     "1.21"
+#property version     "1.30"
 #property description ""
 #property strict
 
@@ -60,6 +60,10 @@ input int             InpZMovN      = 20;           // Dias do z historico do mo
 
 input group           "═══════ v1.2 — Alerta / Score (pesquisa reatividade) ═══════"
 input bool            InpShowScore  = true;         // Colunas SCORE (E10) e dia% no painel
+
+input group           "═══════ CSSM (M e ER — observação, ver P2) ═══════"
+input bool            InpShowCssm   = true;         // Colunas M e er lidas do Cssm.mq5
+input string          InpCssmName   = "Cssm";       // Nome do indicador CSSM em MQL5/Indicators
 input int             InpLateHour   = 15;           // Hora server que esmaece ALERTAS novos (NY)
 
 
@@ -890,7 +894,61 @@ double MET_COLX12[12] = {0.02, 0.09, 0.185, 0.255, 0.325, 0.395, 0.465,
                          0.535, 0.605, 0.675, 0.765, 0.855};
 double MET_COLX10[10] = {0.02, 0.10, 0.225, 0.315, 0.40, 0.495, 0.585,
                          0.675, 0.765, 0.865};
-double ColXf(int i) { return InpShowScore ? MET_COLX12[i] : MET_COLX10[i]; }
+// v1.3 — variantes com as duas colunas do CSSM (M, er) ao final da linha
+double MET_COLX14[14] = {0.02, 0.075, 0.155, 0.215, 0.275, 0.335, 0.395,
+                         0.455, 0.515, 0.575, 0.650, 0.725, 0.820, 0.895};
+double MET_COLX12C[12] = {0.02, 0.085, 0.19, 0.265, 0.34, 0.415, 0.49,
+                          0.565, 0.640, 0.715, 0.815, 0.890};
+int MetNCols()
+{
+   return 10 + (InpShowScore ? 2 : 0) + (InpShowCssm ? 2 : 0);
+}
+double ColXf(int i)
+{
+   if(InpShowScore)  return InpShowCssm ? MET_COLX14[i]  : MET_COLX12[i];
+   return               InpShowCssm ? MET_COLX12C[i] : MET_COLX10[i];
+}
+// Índice da coluna do CSSM (M primeiro, er depois): vem após dia%/SCORE
+int ColCssm() { return InpShowScore ? 12 : 10; }
+
+//--- v1.3: M e ER lidos do CSSM (Cssm.mq5 >= v1.44) via iCustom.
+//    Buffers: 0-7 = M por moeda, 40-47 = ER por moeda.
+//    Ordem das moedas idêntica à do IFM (USD,EUR,GBP,JPY,CHF,CAD,AUD,NZD).
+//    Leitura em shift 1: a barra 0 do CSSM é cópia cosmética da última
+//    fechada (anti-repaint) — ler shift 0 seria repintar.
+double          g_metM[8], g_metER[8];
+int             g_cssmH  = INVALID_HANDLE;
+ENUM_TIMEFRAMES g_cssmTf = PERIOD_CURRENT;
+bool            g_cssmWarned = false;
+
+void MetLoadCssm(ENUM_TIMEFRAMES tf)
+{
+   for(int c = 0; c < 8; c++) { g_metM[c] = EMPTY_VALUE; g_metER[c] = EMPTY_VALUE; }
+   if(!InpShowCssm) return;
+
+   if(g_cssmH == INVALID_HANDLE || g_cssmTf != tf)
+   {
+      if(g_cssmH != INVALID_HANDLE) IndicatorRelease(g_cssmH);
+      g_cssmH  = iCustom(_Symbol, tf, InpCssmName);
+      g_cssmTf = tf;
+      if(g_cssmH == INVALID_HANDLE && !g_cssmWarned)
+      {
+         Print("IFM: nao consegui abrir o indicador '", InpCssmName,
+               "' via iCustom — colunas M/er ficam vazias.");
+         g_cssmWarned = true;
+      }
+   }
+   if(g_cssmH == INVALID_HANDLE) return;
+
+   double tmp[];
+   for(int c = 0; c < 8; c++)
+   {
+      if(CopyBuffer(g_cssmH, c, 1, 1, tmp) == 1 && tmp[0] != EMPTY_VALUE)
+         g_metM[c] = tmp[0];
+      if(CopyBuffer(g_cssmH, 40 + c, 1, 1, tmp) == 1 && tmp[0] != EMPTY_VALUE)
+         g_metER[c] = tmp[0];
+   }
+}
 
 // --- DST em nível de DIA (paridade com o flag_dst do banco da pesquisa:
 //     dst() da meia-noite da data). Server = Europe/Athens (DST europeu).
@@ -1360,6 +1418,7 @@ void RenderMetrics(int win, int x, int y, int w, int h)
    }
 
    int tsel = g_metTFIdx;
+   MetLoadCssm(g_metTFs[tsel]);   // v1.3: M/ER do CSSM no MESMO TF do painel
    // Título na mesma linha das abas (à direita), economizando um slot vertical
    Lbl(TPFX+"hd", win, x + pad + MET_TFN*(pillW+4) + 10, segY + slot/2,
        StringFormat("METRICAS-Z %s %s", ShortToString(0x00B7), g_metTfName[tsel]),
@@ -1367,15 +1426,18 @@ void RenderMetrics(int win, int x, int y, int w, int h)
 
    // Largura útil da tabela: limita para as colunas não "esticarem" demais
    // em janelas muito largas (mantém a leitura compacta à esquerda)
-   int tblW = InpShowScore
-              ? (int)MathMin((double)(w - pad*2), MathMax(900.0, fs * 108.0))
-              : (int)MathMin((double)(w - pad*2), MathMax(760.0, fs * 92.0));
+   double wBase = InpShowScore ? MathMax(900.0, fs * 108.0)
+                               : MathMax(760.0, fs * 92.0);
+   if(InpShowCssm) wBase = MathMax(wBase * 1.16, wBase + fs * 16.0);  // v1.3: M + er
+   int tblW = (int)MathMin((double)(w - pad*2), wBase);
 
    // Colunas (frações da largura útil via ColXf) — col 0 = "#/moeda";
    // v1.2 acrescenta dia% (consumo) e SCORE (E10) quando InpShowScore
-   int nCols = InpShowScore ? 12 : 10;
-   string hdr[12] = {"moeda","força","zS","vel","zvel","acel","zMov","zHist",
-                     "cesta","mtf","dia%","SCORE"};
+   // v1.3 acrescenta M e er (CSSM, buffers 0-7 e 40-47) quando InpShowCssm
+   int nCols = MetNCols();
+   string hdr[14] = {"moeda","força","zS","vel","zvel","acel","zMov","zHist",
+                     "cesta","mtf","dia%","SCORE","M","er"};
+   if(!InpShowScore && InpShowCssm) { hdr[10] = "M"; hdr[11] = "er"; }
    int yHdr = segY + slot + 4;
    Rect(TPFX+"hdbg", win, x+2, yHdr, w-4, slot-1, C'30,32,44', C'30,32,44');
    for(int i = 0; i < nCols; i++)
@@ -1594,9 +1656,35 @@ void RenderMetrics(int win, int x, int y, int w, int h)
          Lbl(TPFX+"sc"+rid, win, bx + (int)(ColXf(11)*iw), cy, scT, scC, fs,
              ANCHOR_LEFT, "Consolas");
       }
+
+      // v1.3 — M e er do CSSM. NÚMEROS CRUS, sem marcador de limiar: a v1.42
+      // do Cssm.mq5 registra que o painel já teve uma regra que acendia como
+      // gatilho e detectou 0% no teste selado do ifm-lab (E11). Observação.
+      // Lembrete: M = sinal(t) * min(|t|/2,1) * ER — o er JÁ ESTÁ dentro do M.
+      if(InpShowCssm)
+      {
+         int cxM = ColCssm();
+
+         double mv = g_metM[c];
+         string mT = MetIsNan(mv) ? ShortToString(0x2014) : DoubleToString(mv, 2);
+         color  mC = MetIsNan(mv) ? COL_TEXT_MUTED
+                     : (mv > 0 ? C'80,220,120'
+                        : (mv < 0 ? C'240,90,90' : COL_TEXT_DIM));
+         Lbl(TPFX+"cm"+rid, win, bx + (int)(ColXf(cxM)*iw), cy, mT, mC, fs,
+             ANCHOR_LEFT, "Consolas");
+
+         double ev = g_metER[c];
+         string eT = MetIsNan(ev) ? ShortToString(0x2014) : DoubleToString(ev, 2);
+         Lbl(TPFX+"ce"+rid, win, bx + (int)(ColXf(cxM+1)*iw), cy, eT,
+             MetIsNan(ev) ? COL_TEXT_MUTED : COL_TEXT_DIM, fs,
+             ANCHOR_LEFT, "Consolas");
+      }
    }
 
    // Rodapé (v1.2: dois níveis de sinal; VETO informativo; Score E10)
+   string ftCssm = InpShowCssm
+                   ? " | M/er do CSSM (shift 1): er alto = JA ANDOU (b1 rho -0,51), nao e entrada"
+                   : "";
    Lbl(TPFX+"ft", win, x+pad, y+h-pad-slot/2,
        StringFormat("alerta: |zS|%s%.1f (esmaece %s%02dh) | confirmacao: +|zvel|%s%.1f +CESTA%s%d/7 | VETO %s informativo | SCORE corte %s%.1f (detector, nao gatilho) | k=%d sigma N=%d | zHist N=%d | nucleo %s",
                     ShortToString(0x2265), InpZThrS, ShortToString(0x2265), InpLateHour,
@@ -1604,7 +1692,7 @@ void RenderMetrics(int win, int x, int y, int w, int h)
                     ShortToString(0x2265), InpMetThrCesta,
                     ShortToString(0x2715), ShortToString(0x2265), SCORE_CUT,
                     InpMetVelK, InpZVelN, InpZMovN,
-                    InpZCore ? "IFM-Z" : "IFM classico"),
+                    InpZCore ? "IFM-Z" : "IFM classico") + ftCssm,
        COL_TEXT_MUTED, fs-1, ANCHOR_LEFT);
 }
 
@@ -1998,6 +2086,7 @@ void OnDeinit(const int reason)
    ObjectsDeleteAll(0, PFX);
    ObjectsDeleteAll(0, MPFX);
    ObjectsDeleteAll(0, TPFX);
+   if(g_cssmH      != INVALID_HANDLE) { IndicatorRelease(g_cssmH); g_cssmH = INVALID_HANDLE; }
    if(g_hRsiBase   != INVALID_HANDLE) IndicatorRelease(g_hRsiBase);
    if(g_hRsiFast   != INVALID_HANDLE) IndicatorRelease(g_hRsiFast);
    if(g_hRsiSlow   != INVALID_HANDLE) IndicatorRelease(g_hRsiSlow);

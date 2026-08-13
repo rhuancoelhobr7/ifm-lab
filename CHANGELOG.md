@@ -4,6 +4,18 @@ Todas as versões do indicador `src/IFM.mq5`. Cada versão corresponde a um git 
 
 Formato de cada entrada: **o que mudou** e **por quê**. A origem da mudança pode ser **pesquisa** (linkar a pasta em `research/`) ou **direta** (decisão/ideia/correção sem pesquisa prévia — registrar a motivação em texto). Ambas são válidas; nenhuma entrada fica sem motivação.
 
+## v1.3 — 2026-08-12
+
+Duas colunas novas na vista MÉTRICAS: **M** e **er**, lidas do `Cssm.mq5` via `iCustom`. **Motivação direta** (pedido do usuário, sem pesquisa prévia): o `M` e o `ER` do CSSM são os dois objetos com os melhores números de precisão do programa e nenhum dos dois aparecia no painel que o usuário usa para operar.
+
+- **De onde vêm.** `M` dos buffers 0–7 e `ER` dos buffers 40–47 do `Cssm.mq5` **v1.44** (a v1.44 existe por causa desta mudança: o ER era calculado desde a v1.30 e exibido desde a v1.42, mas nunca tinha saída por buffer). Leitura no **TF da aba selecionada** e em **shift 1** — a barra 0 do CSSM é cópia cosmética da última fechada, ler shift 0 seria repintar. A ordem das moedas é idêntica nos dois indicadores (`USD,EUR,GBP,JPY,CHF,CAD,AUD,NZD`), então o mapeamento é 1:1.
+- **Por que ler do CSSM em vez de recalcular aqui.** O `M` e o `ER` medidos pelo b1 (rho −0,51 contra a captura restante) e pelo B14 (`M ≥ 0,3` → 7,6% de precisão, 1,6 falsos/semana; `ER ≥ 0,5` → 42%) são calculados sobre o **log-preço do índice sintético** na janela `w_mid` do CSSM. Aplicar as mesmas fórmulas à série `S` do IFM daria outro número usando o nome de um objeto validado.
+- **Sem marcador de limiar, de propósito.** O cabeçalho da v1.42 do `Cssm.mq5` registra que o painel já teve uma regra que acendia como gatilho e **detectou 0% no teste selado do ifm-lab (E11)**. As duas colunas são número cru; o `M` recebe só a cor do sinal (verde/vermelho), como as demais colunas assinadas do painel, e o `er` fica neutro.
+- **Aviso de leitura no rodapé.** `er alto = JA ANDOU`, para a coluna não ser lida como força pela frente — é o inverso (b1, rho −0,51). Lembrete no código: **o `er` já está dentro do `M`** (`M = sinal(t) × min(|t|/2,1) × ER`); as duas colunas não são independentes.
+- **Layout.** Tabela vai a 14 colunas com `InpShowScore` ligado (12 sem ele) e alarga ~16% para as colunas não colidirem. `InpShowCssm=false` restaura o layout da v1.2.1 exatamente.
+- **Status:** EXPLORATÓRIO. O ER está congelado em pré-registro prospectivo (`detector-g8/research/p2_er_prospectivo/`). A coluna existe para **observação**, não para operar.
+- GUIA §3 (grupo de inputs novo) e §10 (as duas linhas na tabela de colunas) atualizados no mesmo commit.
+
 ## v1.2.1 — 2026-07-16
 
 Correção sem mudança de lógica (motivação direta: reporte de Rhuan — coluna SCORE toda em "—" no primeiro teste da v1.2):
